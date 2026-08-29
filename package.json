@@ -1,0 +1,62 @@
+{
+  "name": "@platform/lobby-sdk",
+  "version": "0.1.0",
+  "description": "oyna360 3D Lobby SDK for game developers (Babylon.js). Protocol is bundled — do not install lobby-protocol.",
+  "license": "MIT",
+  "author": "oyna360",
+  "keywords": [
+    "oyna360",
+    "lobby-sdk",
+    "babylonjs",
+    "multiplayer",
+    "avatar"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo \"No lint configured for @platform/lobby-sdk\""
+  },
+  "dependencies": {
+    "@babylonjs/loaders": "^7.44.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "peerDependencies": {
+    "@babylonjs/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "@babylonjs/core": "^7.44.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mamadjavadrasti/oyna360-lobby-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mamadjavadrasti/oyna360-lobby-sdk/issues"
+  },
+  "homepage": "https://github.com/mamadjavadrasti/oyna360-lobby-sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}
