@@ -7,6 +7,7 @@ import {
   StandardMaterial,
   TransformNode,
 } from '@babylonjs/core';
+import { lobbyCanvasFont } from './lobby-font';
 
 export function attachNameTag(
   scene: Scene,
@@ -29,7 +30,7 @@ export function attachNameTag(
   ctx.direction = 'rtl';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 48px Tahoma, Arial';
+  ctx.font = lobbyCanvasFont(48);
   ctx.fillStyle = '#ffffff';
   ctx.fillText(text, 256, 64);
   tex.update();

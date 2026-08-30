@@ -1,5 +1,6 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, PointLight, StandardMaterial, TransformNode, Vector3, } from '@babylonjs/core';
 import { AvatarFactory } from './avatar-factory';
+import { lobbyCanvasFont } from './lobby-font';
 /** Default rooms for the starter plaza only. Games should pass their own `rooms`. */
 export const DEFAULT_PLAZA_ROOMS = [
     { id: 'arena', name: 'آرنا نبرد', mode: 'تیمی', maxPlayers: 5, players: 2, color: '#f97316', accent: '#ef4444', theme: 'arena', position: { x: 0, y: 0, z: 20 } },
@@ -380,9 +381,9 @@ function paintSign(texture, room, occupants, status) {
     ctx.shadowColor = 'rgba(0,0,0,0.55)';
     ctx.shadowBlur = 10;
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 54px Tahoma, Arial';
+    ctx.font = lobbyCanvasFont(54);
     ctx.fillText(room.name, 948, 108);
-    ctx.font = 'bold 34px Tahoma, Arial';
+    ctx.font = lobbyCanvasFont(34);
     ctx.fillStyle = '#f8fafc';
     ctx.fillText(`${occupants} از ${room.maxPlayers}   ${status}`, 948, 178);
     ctx.shadowBlur = 0;
@@ -407,7 +408,7 @@ function makeSign(scene, id, text, color) {
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
     ctx.shadowBlur = 8;
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px Tahoma, Arial';
+    ctx.font = lobbyCanvasFont(48);
     ctx.fillText(text, 256, 64);
     ctx.shadowBlur = 0;
     tex.update();

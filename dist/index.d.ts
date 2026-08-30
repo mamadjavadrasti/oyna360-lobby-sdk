@@ -21,6 +21,7 @@ export type { PlazaLayoutConfig, PlazaRoomDef } from './plaza-layout';
 export { attachPlayground } from './playground/playground-system';
 export { LobbyMusic } from './lobby-music';
 export { attachLobbyChatUi } from './lobby-chat-ui';
+export { ensureLobbyPersianFont, lobbyCanvasFont, LOBBY_UI_FONT } from './lobby-font';
 export { SLIDE_ANCHOR, TRAMPOLINE_ANCHOR } from './playground/playground-layout';
 export { LOBBY_PROTOCOL_VERSION, GLOBAL_AVATAR_ROOM_ID, gameRoomId, LOBBY_CHAT_MAX_LEN, sanitizeLobbyChat, } from './protocol';
 //# sourceMappingURL=index.d.ts.map

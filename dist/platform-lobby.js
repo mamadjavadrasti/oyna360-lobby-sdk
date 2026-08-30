@@ -15,6 +15,7 @@ import { attachLobbyDebug, buildLobbyDebugReport } from './lobby-debug';
 import { attachPlayground } from './playground/playground-system';
 import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
+import { ensureLobbyPersianFont } from './lobby-font';
 export class PlatformLobby {
     canvas;
     init;
@@ -81,6 +82,7 @@ export class PlatformLobby {
         });
     }
     async bootstrap() {
+        await ensureLobbyPersianFont();
         this.sceneManager = new SceneManager(this.canvas, this.config);
         const spawn = this.config.spawnPoint ??
             this.config.spawnPoints?.[0] ?? { x: 0, y: 0, z: 0 };
@@ -153,6 +155,8 @@ export class PlatformLobby {
                 this.remotePlayers.applyEmote(userId, emote);
             },
             onChat: (payload) => {
+                if (payload.userId === this.init.user.id)
+                    return;
                 this.emit('chat', payload);
             },
             onError: (code, message) => {
@@ -257,21 +261,18 @@ export class PlatformLobby {
     playEmote(emote) {
         this.network?.sendEmote(emote);
     }
-    /** Live lobby chat. Not saved. Returns false if empty/too fast locally. */
+    /** Live lobby chat. Not saved. Always echoes locally so the sender sees the line. */
     sendChat(text) {
         const clean = sanitizeLobbyChat(text);
         if (!clean)
             return false;
-        if (this.network?.isConnected()) {
-            this.network.sendChat(clean);
-            return true;
-        }
         this.emit('chat', {
             userId: this.init.user.id,
             displayName: this.init.user.displayName,
             text: clean,
             at: Date.now(),
         });
+        this.network?.sendChat(clean);
         return true;
     }
     attachChat() {

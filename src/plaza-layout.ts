@@ -12,6 +12,7 @@ import {
 import type { PlatformLobby } from './platform-lobby';
 import { AvatarFactory } from './avatar-factory';
 import type { Vector3 as Vec3 } from './types';
+import { lobbyCanvasFont } from './lobby-font';
 
 export interface PlazaRoomDef {
   id: string;
@@ -474,9 +475,9 @@ function paintSign(texture: DynamicTexture, room: PlazaRoomDef, occupants: numbe
   ctx.shadowColor = 'rgba(0,0,0,0.55)';
   ctx.shadowBlur = 10;
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 54px Tahoma, Arial';
+  ctx.font = lobbyCanvasFont(54);
   ctx.fillText(room.name, 948, 108);
-  ctx.font = 'bold 34px Tahoma, Arial';
+  ctx.font = lobbyCanvasFont(34);
   ctx.fillStyle = '#f8fafc';
   ctx.fillText(`${occupants} از ${room.maxPlayers}   ${status}`, 948, 178);
   ctx.shadowBlur = 0;
@@ -502,7 +503,7 @@ function makeSign(scene: Scene, id: string, text: string, color: string) {
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
   ctx.shadowBlur = 8;
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 48px Tahoma, Arial';
+  ctx.font = lobbyCanvasFont(48);
   ctx.fillText(text, 256, 64);
   ctx.shadowBlur = 0;
   tex.update();

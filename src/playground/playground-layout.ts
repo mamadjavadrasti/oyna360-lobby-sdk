@@ -11,6 +11,7 @@ import {
 } from '@babylonjs/core';
 import type { PlatformLobby } from '../platform-lobby';
 import type { Vector3 as Vec3 } from '../types';
+import { lobbyCanvasFont } from '../lobby-font';
 
 /** Southwest grass — visible from the plaza, not on a portal spoke. */
 export const SLIDE_ANCHOR: Vec3 = { x: -22, y: 0, z: -12 };
@@ -307,7 +308,7 @@ function playgroundLabel(scene: Scene, id: string, text: string, color: string) 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 52px Tahoma, Arial';
+  ctx.font = lobbyCanvasFont(52);
   ctx.fillText(text, 256, 64);
   tex.update();
   const m = new StandardMaterial(`${id}-mat`, scene);

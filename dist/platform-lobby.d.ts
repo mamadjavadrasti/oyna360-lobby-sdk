@@ -71,7 +71,7 @@ export declare class PlatformLobby {
     onOverlay(id: string, handler: (payload: unknown) => void): void;
     emitOverlay(id: string, payload: unknown): void;
     playEmote(emote: LobbyEmoteKind): void;
-    /** Live lobby chat. Not saved. Returns false if empty/too fast locally. */
+    /** Live lobby chat. Not saved. Always echoes locally so the sender sees the line. */
     sendChat(text: string): boolean;
     attachChat(): this;
     /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */

@@ -1,4 +1,5 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, } from '@babylonjs/core';
+import { lobbyCanvasFont } from './lobby-font';
 export function attachNameTag(scene, parent, label, id) {
     const text = label.trim().slice(0, 24) || 'بازیکن';
     const plane = MeshBuilder.CreatePlane(`${id}-nametag`, { width: 2.2, height: 0.48 }, scene);
@@ -14,7 +15,7 @@ export function attachNameTag(scene, parent, label, id) {
     ctx.direction = 'rtl';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 48px Tahoma, Arial';
+    ctx.font = lobbyCanvasFont(48);
     ctx.fillStyle = '#ffffff';
     ctx.fillText(text, 256, 64);
     tex.update();

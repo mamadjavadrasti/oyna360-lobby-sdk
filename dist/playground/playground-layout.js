@@ -1,4 +1,5 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, PointLight, StandardMaterial, TransformNode, Vector3, } from '@babylonjs/core';
+import { lobbyCanvasFont } from '../lobby-font';
 /** Southwest grass — visible from the plaza, not on a portal spoke. */
 export const SLIDE_ANCHOR = { x: -22, y: 0, z: -12 };
 export const SLIDE_YAW = Math.atan2(SLIDE_ANCHOR.x, SLIDE_ANCHOR.z);
@@ -254,7 +255,7 @@ function playgroundLabel(scene, id, text, color) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 52px Tahoma, Arial';
+    ctx.font = lobbyCanvasFont(52);
     ctx.fillText(text, 256, 64);
     tex.update();
     const m = new StandardMaterial(`${id}-mat`, scene);
