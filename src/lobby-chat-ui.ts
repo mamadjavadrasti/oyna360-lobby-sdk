@@ -47,9 +47,50 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
   row.append(input, send);
   panel.append(log, row);
 
+  const toast = document.createElement('button');
+  toast.type = 'button';
+  toast.style.cssText = [
+    'display:none',
+    'pointer-events:auto',
+    'max-width:220px',
+    'border:1px solid rgba(255,255,255,.14)',
+    'border-radius:12px',
+    'background:rgba(8,8,20,.78)',
+    'color:#fff',
+    `font:12px/1.45 ${LOBBY_UI_FONT}`,
+    'text-align:right',
+    'padding:7px 10px',
+    'cursor:pointer',
+    'white-space:nowrap',
+    'overflow:hidden',
+    'text-overflow:ellipsis',
+  ].join(';');
+
+  const badge = document.createElement('span');
+  badge.style.cssText =
+    'display:none;position:absolute;top:-4px;left:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font:700 10px/16px Vazirmatn,Tahoma,sans-serif;text-align:center;pointer-events:none';
+  toggle.style.position = 'relative';
+  toggle.append(badge);
+
   const root = document.createElement('div');
   root.dataset.lobbyChat = '1';
-  mountChatChrome(root, toggle, panel, canvas);
+  mountChatChrome(root, toggle, panel, toast, canvas);
+
+  let unread = 0;
+  let toastTimer = 0;
+  const isOpen = () => panel.style.display !== 'none';
+
+  const hideToast = () => {
+    toast.style.display = 'none';
+    if (toastTimer) window.clearTimeout(toastTimer);
+    toastTimer = 0;
+  };
+
+  const setUnread = (n: number) => {
+    unread = n;
+    badge.textContent = n > 9 ? '۹+' : String(n);
+    badge.style.display = n > 0 ? 'block' : 'none';
+  };
 
   const submit = () => {
     if (lobby.sendChat(input.value)) input.value = '';
@@ -57,7 +98,13 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
 
   const open = () => {
     panel.style.display = 'block';
+    hideToast();
+    setUnread(0);
     input.focus();
+  };
+
+  const close = () => {
+    panel.style.display = 'none';
   };
 
   const blockScene = (e: Event) => {
@@ -67,8 +114,14 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
   toggle.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (panel.style.display === 'none') open();
-    else panel.style.display = 'none';
+    if (isOpen()) close();
+    else open();
+  });
+
+  toast.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    open();
   });
 
   row.addEventListener('pointerdown', blockScene);
@@ -86,21 +139,29 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
   });
 
   const off = lobby.on('chat', ({ userId, displayName, text }) => {
-    const row = document.createElement('p');
-    row.style.margin = '0 0 6px';
-    row.style.wordBreak = 'break-word';
+    const mine = userId === lobby.getUser().id;
+    const line = document.createElement('p');
+    line.style.margin = '0 0 6px';
+    line.style.wordBreak = 'break-word';
     const who = document.createElement('b');
     who.style.color = '#c4b5fd';
-    who.textContent = userId === lobby.getUser().id ? 'شما' : displayName;
-    row.append(who, document.createTextNode(`: ${text}`));
-    log.append(row);
+    who.textContent = mine ? 'شما' : displayName;
+    line.append(who, document.createTextNode(`: ${text}`));
+    log.append(line);
     while (log.childElementCount > 40) log.firstElementChild?.remove();
     log.scrollTop = log.scrollHeight;
-    open();
+    if (isOpen()) return;
+    if (mine) return;
+    toast.textContent = `${displayName}: ${text}`;
+    toast.style.display = 'block';
+    if (toastTimer) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(hideToast, 4200);
+    setUnread(unread + 1);
   });
 
   return () => {
     off();
+    hideToast();
     toggle.remove();
     root.remove();
   };
@@ -110,6 +171,7 @@ function mountChatChrome(
   root: HTMLElement,
   toggle: HTMLButtonElement,
   panel: HTMLElement,
+  toast: HTMLElement,
   canvas: HTMLCanvasElement,
 ) {
   const shell = [
@@ -137,7 +199,7 @@ function mountChatChrome(
       `top:${col.offsetTop + toggle.offsetTop}px`,
       shell,
     ].join(';');
-    root.append(panel);
+    root.append(toast, panel);
     hud.append(root);
     return;
   }
@@ -153,7 +215,10 @@ function mountChatChrome(
       'align-items:flex-start',
       shell,
     ].join(';');
-    root.append(toggle, panel);
+    const iconRow = document.createElement('div');
+    iconRow.style.cssText = 'display:flex;align-items:center;gap:8px';
+    iconRow.append(toggle, toast);
+    root.append(iconRow, panel);
     music.parentElement.append(root);
     return;
   }
@@ -172,6 +237,9 @@ function mountChatChrome(
     'align-items:flex-start',
     shell,
   ].join(';');
-  root.append(toggle, panel);
+  const iconRow = document.createElement('div');
+  iconRow.style.cssText = 'display:flex;align-items:center;gap:8px';
+  iconRow.append(toggle, toast);
+  root.append(iconRow, panel);
   host.append(root);
 }
