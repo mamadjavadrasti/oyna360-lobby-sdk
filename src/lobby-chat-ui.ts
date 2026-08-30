@@ -25,8 +25,8 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
   const log = document.createElement('div');
   log.style.cssText = 'height:140px;overflow:auto;margin-bottom:8px';
 
-  const form = document.createElement('form');
-  form.style.cssText = 'display:flex;gap:6px;align-items:center';
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;align-items:center';
 
   const input = document.createElement('input');
   input.type = 'text';
@@ -37,15 +37,15 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
     `flex:1;min-width:0;border:1px solid rgba(255,255,255,.16);border-radius:10px;background:rgba(0,0,0,.28);color:#fff;padding:7px 9px;font:13px ${LOBBY_UI_FONT}`;
 
   const send = document.createElement('button');
-  send.type = 'submit';
+  send.type = 'button';
   send.title = 'ارسال';
   send.setAttribute('aria-label', 'ارسال');
   send.innerHTML = SEND_ICON;
   send.style.cssText =
     'flex:0 0 42px;width:42px;height:36px;border:0;border-radius:10px;background:#7c3aed;color:#fff;cursor:pointer;display:grid;place-items:center;padding:0';
 
-  form.append(input, send);
-  panel.append(log, form);
+  row.append(input, send);
+  panel.append(log, row);
 
   const root = document.createElement('div');
   root.dataset.lobbyChat = '1';
@@ -71,9 +71,15 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
     else panel.style.display = 'none';
   });
 
-  form.addEventListener('pointerdown', blockScene);
-  form.addEventListener('click', blockScene);
-  form.addEventListener('submit', (e) => {
+  row.addEventListener('pointerdown', blockScene);
+  row.addEventListener('click', blockScene);
+  send.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    submit();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
     e.preventDefault();
     e.stopPropagation();
     submit();
