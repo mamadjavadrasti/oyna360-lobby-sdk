@@ -1,8 +1,22 @@
-import { Scene, TransformNode } from '@babylonjs/core';
-import type { SdkLobbyAvatar } from '@platform/types';
-/** Stylized blocky humanoid (Roblox-like). GLB can replace later. */
+import { Mesh, Scene, TransformNode } from '@babylonjs/core';
+import type { SdkLobbyAvatar } from './platform-types';
+export interface AvatarRig {
+    /** Movable node (collider if present, otherwise visual root). */
+    root: TransformNode;
+    visual: TransformNode;
+    collider: Mesh | null;
+    torso: TransformNode;
+    head: TransformNode;
+    armL: TransformNode;
+    armR: TransformNode;
+    legL: TransformNode;
+    legR: TransformNode;
+}
 export declare class AvatarFactory {
-    static create(scene: Scene, avatar: SdkLobbyAvatar, name?: string, displayName?: string): TransformNode;
+    static create(scene: Scene, avatar: SdkLobbyAvatar, name?: string, displayName?: string, options?: {
+        collider?: boolean | 'player' | 'body';
+    }): TransformNode;
+    static getRig(root: TransformNode): AvatarRig | null;
     static setPosition(root: TransformNode, position: {
         x: number;
         y: number;

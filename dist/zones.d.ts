@@ -16,6 +16,7 @@ export declare class ZoneManager {
 }
 export declare class PortalManager {
     private readonly portals;
+    /** Registers a portal. Hits fire `onTrigger` only — no browser navigation. */
     addPortal(options: {
         id: string;
         position: Vector3;

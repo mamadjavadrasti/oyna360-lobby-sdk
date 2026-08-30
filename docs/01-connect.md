@@ -4,6 +4,8 @@
 
 همین پکیج `@platform/lobby-sdk` کافی است. `lobby-protocol` لازم نیست.
 
+اول استارتر را کپی کنید، از صفر ننویسید. جزئیات و تله‌ها: [lobby-sdk-integration.md](../../../docs/lobby-sdk-integration.md#چطور-از-استارتر-استفاده-کنید).
+
 ---
 
 ## قرارداد
@@ -12,10 +14,22 @@
 |---------------|-----------------|
 | کاربر، سشن، JWT | صحنه / ظاهر لابی |
 | آواتار انتخاب‌شده | جای پورتال و برچسب‌ها |
-| بازیکنان اتاق + حرکت | بعد از ورود به پورتال / اتمام شمارش اتاق چه می‌شود |
+| بازیکنان اتاق + حرکت + چت زنده | بعد از ورود به پورتال / اتمام شمارش اتاق چه می‌شود |
 | سوکت `lobby:*`، اتاق `game:{slug}` | نصب SDK داخل پروژهٔ بازی |
 
-`toGameSlug` و `toScene` فقط راهنما هستند. SDK هرگز صفحه را عوض نمی‌کند.
+`toGameSlug` و `toScene` فقط راهنما هستند. SDK هرگز صفحه را عوض نمی‌کند. چت ذخیره نمی‌شود.
+
+---
+
+## از استارتر بیاورید
+
+1. در روت پلتفرم: `npm run lobby:demo` → http://localhost:5174
+2. کپی `apps/examples/lobby-demo/src/lobby-config.ts` و الگوی `main.ts`
+3. همین SDK را بعد از `pnpm --filter @platform/lobby-sdk build` به بازی بدهید (workspace داخل ریپوی بازی، یا تگ GitHub با `dist` تازه)
+4. به فولدر پلتفرم روی دیسک لوکال alias ندهید
+5. تست از `/play/{slug}` با `entryUrl` همان پورت بازی
+
+اگر بیلد گفت `@platform/lobby-protocol` resolve نشد، shim ننویسید — `dist` کهنه است.
 
 ---
 
@@ -24,11 +38,7 @@
 1. بازی روی URL عمومی (یا `http://localhost:PORT`) host شده باشد.
 2. در ادمین: `slug` + `entryUrl` + `allowedOrigins`
 3. بازیکن از `/play/{slug}` وارد شود و لاگین باشد.
-4. نصب:
-
-```bash
-npm install github:mamadjavadrasti/oyna360-lobby-sdk @babylonjs/core
-```
+4. `@platform/lobby-sdk` هم‌نسخهٔ استارتر + `@babylonjs/core`
 
 ---
 
@@ -53,36 +63,22 @@ import { PlatformLobby } from '@platform/lobby-sdk';
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const lobby = await PlatformLobby.createFromPlatform(canvas, {
   spawnPoint: { x: 0, y: 0, z: 3 },
+  cameraDistance: 9.5,
+  cameraHeight: 5,
 });
 
 function startGameplay(reason: { kind: 'portal' | 'room'; id: string }) {
   lobby.destroy();
-  // مسابقه / صحنه خودتان
 }
 
-lobby.on('ready', () => {
-  lobby.addPortal({
-    id: 'play',
-    position: { x: 0, y: 0, z: 10 },
-    toScene: 'gameplay',
-    onTrigger: () => startGameplay({ kind: 'portal', id: 'play' }),
-  });
-});
-
-lobby.getUser();
-lobby.getAvatar();
-lobby.getSession();
-lobby.getPlayers();
-```
-
-پلازا اختیاری:
-
-```typescript
 lobby.applyPlazaLayout({
-  rooms: myRooms,
   onRoomStart: (room) => startGameplay({ kind: 'room', id: room.id }),
 });
 ```
+
+`lobby.applyPlazaLayout` متد است (برخورد + زمین‌بازی). تابع export را صدا نزنید.
+
+چت: پیش‌فرض 💬. `enableChat: false` / `sendChat` / `on('chat')`.
 
 ---
 
@@ -90,8 +86,8 @@ lobby.applyPlazaLayout({
 
 | فیلد | لوکال | پروداکشن |
 |------|--------|-----------|
-| entryUrl | `http://localhost:5174` | `https://games.example.com/` |
-| allowedOrigins | `http://localhost:5174` | `https://games.example.com` |
+| entryUrl | پورت Vite بازی، مثلاً `http://localhost:5180` | `https://games.example.com/` |
+| allowedOrigins | همان origin | همان origin |
 
 سوکت از `platform:init.lobby.wsUrl` می‌آید. به `localhost:3001` هاردکد نکنید.
 
@@ -99,8 +95,8 @@ lobby.applyPlazaLayout({
 
 ## چک‌لیست
 
+- [ ] استارتر را دیده‌اید؛ `dist` شامل animator / colliders / protocol / chat
+- [ ] دو canvas اگر موتور دیگری دارید
 - [ ] `entryUrl` + `allowedOrigins` درست
-- [ ] `createFromPlatform` بعد از لود canvas
-- [ ] پورتال یا `onRoomStart` که گیم‌پلی را شروع کند
-- [ ] `lobby.destroy()` قبل از گیم‌پلی
-- [ ] تست: `/play/{slug}` → حرکت → پورتال → گیم‌پلی
+- [ ] تست از `/play/{slug}` نه پورت خام
+- [ ] `applyPlazaLayout` متد + `destroy()` قبل از گیم‌پلی

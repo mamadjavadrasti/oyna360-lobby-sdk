@@ -28,6 +28,8 @@ export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig 
   playerSpeed?: number;
   runMultiplier?: number;
   enableMultiplayer?: boolean;
+  /** Default true. Live room chat overlay; messages are not stored. */
+  enableChat?: boolean;
 }
 
 export interface PlatformLobbyCreateOptions {
@@ -89,6 +91,8 @@ export type LobbyEventMap = {
   connected: void;
   disconnected: void;
   error: { message: string; code?: string };
+  /** Live room chat. Not stored. */
+  chat: { userId: string; displayName: string; text: string; at: number };
 };
 
 export type LobbyEventName = keyof LobbyEventMap;

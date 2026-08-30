@@ -1,4 +1,4 @@
-import type { LobbyEmoteKind, LobbyMoveMessage, LobbyPlayerState } from '@platform/lobby-protocol';
+import type { LobbyEmoteKind, LobbyMoveMessage, LobbyPlayerState } from './protocol';
 export type NetworkClientHandlers = {
     onWelcome?: (self: LobbyPlayerState, players: LobbyPlayerState[]) => void;
     onPlayerJoined?: (player: LobbyPlayerState) => void;
@@ -12,6 +12,12 @@ export type NetworkClientHandlers = {
         serverTime: number;
     }) => void;
     onPlayerEmote?: (userId: string, emote: LobbyEmoteKind) => void;
+    onChat?: (payload: {
+        userId: string;
+        displayName: string;
+        text: string;
+        at: number;
+    }) => void;
     onError?: (code: string, message: string) => void;
     onConnected?: () => void;
     onDisconnected?: () => void;
@@ -30,6 +36,7 @@ export declare class NetworkClient {
     private handleServerMessage;
     sendMove(payload: Omit<LobbyMoveMessage, 'type' | 'seq'>): void;
     sendEmote(emote: LobbyEmoteKind): void;
+    sendChat(text: string): void;
     ping(): void;
     disconnect(): void;
     isConnected(): boolean;

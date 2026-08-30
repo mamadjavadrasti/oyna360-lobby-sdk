@@ -1,14 +1,15 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, PointLight, StandardMaterial, TransformNode, Vector3, } from '@babylonjs/core';
 import { AvatarFactory } from './avatar-factory';
+/** Default rooms for the starter plaza only. Games should pass their own `rooms`. */
 export const DEFAULT_PLAZA_ROOMS = [
-    { id: 'arena', name: 'BATTLE ARENA', mode: 'Team', maxPlayers: 5, players: 2, color: '#f97316', accent: '#ef4444', theme: 'arena', position: { x: 0, y: 0, z: 20 } },
-    { id: 'reborn', name: 'REBORN', mode: 'Team', maxPlayers: 5, players: 1, color: '#fb7185', accent: '#e11d48', theme: 'arch', position: { x: 14.1, y: 0, z: 14.1 } },
-    { id: 'dual', name: 'DUAL', mode: '1v1', maxPlayers: 2, players: 1, color: '#3b82f6', accent: '#60a5fa', theme: 'dual', position: { x: 20, y: 0, z: 0 } },
-    { id: 'space', name: 'SPACE', mode: 'Solo', maxPlayers: 4, players: 0, color: '#22d3ee', accent: '#10b981', theme: 'rings', position: { x: 14.1, y: 0, z: -14.1 } },
-    { id: 'tower', name: 'TOWER', mode: 'Coop', maxPlayers: 4, players: 2, color: '#a855f7', accent: '#c084fc', theme: 'spire', position: { x: 0, y: 0, z: -20 } },
-    { id: 'racing', name: 'RACING', mode: 'Race', maxPlayers: 4, players: 1, color: '#facc15', accent: '#f97316', theme: 'track', position: { x: -14.1, y: 0, z: -14.1 } },
-    { id: 'zombie', name: 'ZOMBIE', mode: 'Horde', maxPlayers: 5, players: 3, color: '#84cc16', accent: '#166534', theme: 'toxic', position: { x: -20, y: 0, z: 0 } },
-    { id: 'survival', name: 'SURVIVAL', mode: 'Coop', maxPlayers: 4, players: 0, color: '#38bdf8', accent: '#0ea5e9', theme: 'ice', position: { x: -14.1, y: 0, z: 14.1 } },
+    { id: 'arena', name: 'آرنا نبرد', mode: 'تیمی', maxPlayers: 5, players: 2, color: '#f97316', accent: '#ef4444', theme: 'arena', position: { x: 0, y: 0, z: 20 } },
+    { id: 'reborn', name: 'تولد دوباره', mode: 'تیمی', maxPlayers: 5, players: 1, color: '#fb7185', accent: '#e11d48', theme: 'arch', position: { x: 14.1, y: 0, z: 14.1 } },
+    { id: 'dual', name: 'دوئل', mode: '۱ در ۱', maxPlayers: 2, players: 1, color: '#3b82f6', accent: '#60a5fa', theme: 'dual', position: { x: 20, y: 0, z: 0 } },
+    { id: 'space', name: 'فضا', mode: 'انفرادی', maxPlayers: 4, players: 0, color: '#22d3ee', accent: '#10b981', theme: 'rings', position: { x: 14.1, y: 0, z: -14.1 } },
+    { id: 'tower', name: 'برج', mode: 'همکاری', maxPlayers: 4, players: 2, color: '#a855f7', accent: '#c084fc', theme: 'spire', position: { x: 0, y: 0, z: -20 } },
+    { id: 'racing', name: 'مسابقه', mode: 'سرعت', maxPlayers: 4, players: 1, color: '#facc15', accent: '#f97316', theme: 'track', position: { x: -14.1, y: 0, z: -14.1 } },
+    { id: 'zombie', name: 'زامبی', mode: 'هجوم', maxPlayers: 5, players: 3, color: '#84cc16', accent: '#166534', theme: 'toxic', position: { x: -20, y: 0, z: 0 } },
+    { id: 'survival', name: 'بقا', mode: 'همکاری', maxPlayers: 4, players: 0, color: '#38bdf8', accent: '#0ea5e9', theme: 'ice', position: { x: -14.1, y: 0, z: 14.1 } },
 ];
 const NPC_PRESETS = [
     { name: 'Nova', bodyColor: '#ef4444', accentColor: '#fecaca', pantsColor: '#3f3f46' },
@@ -20,6 +21,7 @@ const NPC_PRESETS = [
     { name: 'Lina', bodyColor: '#ec4899', accentColor: '#fce7f3', pantsColor: '#9d174d' },
     { name: 'Ash', bodyColor: '#64748b', accentColor: '#e2e8f0', pantsColor: '#0f172a' },
 ];
+/** Optional plaza template for the starter lobby. Games copy or replace this; it is not the official oyna360 lobby. */
 export function applyPlazaLayout(lobby, config = {}) {
     const scene = lobby.getScene();
     const rooms = config.rooms ?? DEFAULT_PLAZA_ROOMS;
@@ -49,7 +51,7 @@ export function applyPlazaLayout(lobby, config = {}) {
         });
     }
     spawnPlazaCrowd(scene, config.npcCount ?? 8);
-    animateScene(scene, runtimes, lobby);
+    animateScene(scene, runtimes, lobby, config.onRoomStart);
     lobby.emitOverlay('room-state', serializeRooms(runtimes));
 }
 function mat(scene, id, hex, emissive = 0) {
@@ -64,27 +66,50 @@ function buildWorld(scene) {
     const grass = MeshBuilder.CreateDisc('grass-ground', { radius: 42, tessellation: 48 }, scene);
     grass.rotation.x = Math.PI / 2;
     grass.position.y = 0.01;
-    grass.material = mat(scene, 'grass-mat', '#15803d');
-    const plaza = MeshBuilder.CreateCylinder('plaza-pavement', { diameter: 28, height: 0.12, tessellation: 48 }, scene);
-    plaza.position.y = 0.06;
+    const grassMat = mat(scene, 'grass-mat', '#15803d');
+    grassMat.zOffset = 2;
+    grass.material = grassMat;
+    grass.receiveShadows = false;
+    const plaza = MeshBuilder.CreateCylinder('plaza-pavement', { diameter: 28, height: 0.14, tessellation: 48 }, scene);
+    plaza.position.y = 0.08;
     plaza.material = mat(scene, 'plaza-mat', '#78716c');
-    const ring = MeshBuilder.CreateTorus('plaza-ring', { diameter: 28.4, thickness: 0.35, tessellation: 48 }, scene);
-    ring.position.y = 0.16;
+    plaza.receiveShadows = false;
+    const ring = MeshBuilder.CreateTorus('plaza-ring', { diameter: 28.4, thickness: 0.28, tessellation: 48 }, scene);
+    ring.position.y = 0.2;
     ring.rotation.x = Math.PI / 2;
     ring.material = mat(scene, 'plaza-ring-mat', '#a78bfa', 0.25);
     for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2;
-        const path = MeshBuilder.CreateBox(`path-${i}`, { width: 2.2, height: 0.08, depth: 9 }, scene);
-        path.position = new Vector3(Math.sin(a) * 13.5, 0.08, Math.cos(a) * 13.5);
-        path.rotation.y = a;
-        path.material = mat(scene, `path-mat-${i}`, '#57534e');
+        makeEntranceWalkway(scene, i);
     }
     for (let i = 0; i < 16; i++) {
         const a = (i / 16) * Math.PI * 2 + 0.2;
-        const tile = MeshBuilder.CreateBox(`edge-tile-${i}`, { width: 1.1, height: 0.18, depth: 0.5 }, scene);
-        tile.position = new Vector3(Math.sin(a) * 14.2, 0.14, Math.cos(a) * 14.2);
+        const tile = MeshBuilder.CreateBox(`edge-tile-${i}`, { width: 0.9, height: 0.16, depth: 0.36 }, scene);
+        tile.position = new Vector3(Math.sin(a) * 14.05, 0.22, Math.cos(a) * 14.05);
         tile.rotation.y = a;
         tile.material = mat(scene, `edge-tile-mat-${i}`, i % 2 ? '#c4b5fd' : '#fde68a', 0.15);
+    }
+}
+/** Short bridge from plaza rim to room pad — must not overlap either floor (z-fighting). */
+function makeEntranceWalkway(scene, i) {
+    const a = (i / 8) * Math.PI * 2;
+    const plazaR = 14.08;
+    const padInnerR = 16.82;
+    const mid = (plazaR + padInnerR) / 2;
+    const length = padInnerR - plazaR;
+    const dir = new Vector3(Math.sin(a), 0, Math.cos(a));
+    const side = new Vector3(Math.cos(a), 0, -Math.sin(a));
+    const walk = MeshBuilder.CreateBox(`path-${i}`, { width: 2.5, height: 0.18, depth: length }, scene);
+    walk.position = dir.scale(mid);
+    walk.position.y = 0.13;
+    walk.rotation.y = a;
+    walk.material = mat(scene, `path-mat-${i}`, '#57534e');
+    walk.receiveShadows = false;
+    for (const s of [-1, 1]) {
+        const curb = MeshBuilder.CreateBox(`path-curb-${i}-${s}`, { width: 0.14, height: 0.28, depth: length }, scene);
+        curb.position = dir.scale(mid).add(side.scale(s * 1.32));
+        curb.position.y = 0.2;
+        curb.rotation.y = a;
+        curb.material = mat(scene, `path-curb-mat-${i}-${s}`, '#94a3b8', 0.12);
     }
 }
 function buildFountain(scene) {
@@ -112,10 +137,10 @@ function buildFountain(scene) {
 }
 function buildShops(scene, lobby) {
     const shops = [
-        { id: 'shop', label: 'SHOP', color: '#fb7185', roof: '#be123c', a: 0.4, r: 30 },
-        { id: 'cafe', label: 'CAFE', color: '#fdba74', roof: '#c2410c', a: 2.0, r: 30 },
-        { id: 'dojo', label: 'DOJO', color: '#5eead4', roof: '#0f766e', a: 3.6, r: 30 },
-        { id: 'lab', label: 'LAB', color: '#c4b5fd', roof: '#6d28d9', a: 5.2, r: 30 },
+        { id: 'shop', label: 'فروشگاه', color: '#fb7185', roof: '#be123c', a: 0.4, r: 30 },
+        { id: 'cafe', label: 'کافه', color: '#fdba74', roof: '#c2410c', a: 2.0, r: 30 },
+        { id: 'dojo', label: 'دوجو', color: '#5eead4', roof: '#0f766e', a: 3.6, r: 30 },
+        { id: 'lab', label: 'آزمایشگاه', color: '#c4b5fd', roof: '#6d28d9', a: 5.2, r: 30 },
     ];
     shops.forEach((s) => {
         const x = Math.sin(s.a) * s.r;
@@ -207,28 +232,29 @@ function buildRoom(scene, room) {
     const root = new TransformNode(`room-root-${room.id}`, scene);
     root.position = new Vector3(room.position.x, 0, room.position.z);
     root.lookAt(new Vector3(0, 0, 0));
-    const pad = MeshBuilder.CreateCylinder(`room-pad-${room.id}`, { diameter: 6.4, height: 0.18, tessellation: 16 }, scene);
+    const pad = MeshBuilder.CreateCylinder(`room-pad-${room.id}`, { diameter: 6.4, height: 0.22, tessellation: 16 }, scene);
     pad.parent = root;
-    pad.position.y = 0.1;
+    pad.position.y = 0.16;
     pad.material = mat(scene, `room-pad-mat-${room.id}`, room.color, 0.55);
+    pad.receiveShadows = false;
     const inner = MeshBuilder.CreateCylinder(`room-inner-${room.id}`, { diameter: 4.4, height: 0.08, tessellation: 16 }, scene);
     inner.parent = root;
-    inner.position.y = 0.2;
+    inner.position.y = 0.28;
     inner.material = mat(scene, `room-inner-mat-${room.id}`, room.accent ?? room.color, 0.35);
-    const portal = MeshBuilder.CreateTorus(`room-portal-${room.id}`, { diameter: 3.2, thickness: 0.22, tessellation: 24 }, scene);
+    const portal = MeshBuilder.CreateTorus(`room-portal-${room.id}`, { diameter: 3.8, thickness: 0.22, tessellation: 28 }, scene);
     portal.parent = root;
-    portal.position.set(0, 2.15, -1.6);
+    portal.position.set(0, 2.08, -1.6);
     portal.material = mat(scene, `room-portal-mat-${room.id}`, room.color, 0.95);
-    const veil = MeshBuilder.CreateDisc(`room-veil-${room.id}`, { radius: 1.35, tessellation: 20 }, scene);
+    const veil = MeshBuilder.CreateDisc(`room-veil-${room.id}`, { radius: 1.55, tessellation: 24 }, scene);
     veil.parent = root;
-    veil.position.set(0, 2.15, -1.6);
+    veil.position.set(0, 2.08, -1.6);
     const veilMat = mat(scene, `room-veil-mat-${room.id}`, room.color, 0.8);
     veilMat.alpha = 0.55;
     veil.material = veilMat;
     decorateTheme(scene, root, room);
     const { mesh, texture } = makeRoomSign(scene, room);
     mesh.parent = root;
-    mesh.position.set(0, 4.35, 0);
+    mesh.position.set(0, 4.55, 0);
     const light = new PointLight(`room-light-${room.id}`, new Vector3(0, 2.4, 0), scene);
     light.parent = root;
     light.diffuse = Color3.FromHexString(room.color);
@@ -237,7 +263,7 @@ function buildRoom(scene, room) {
     return {
         def: room,
         occupants: room.players ?? 0,
-        status: 'WAITING...',
+        status: 'در انتظار...',
         label: mesh,
         texture,
         countdown: null,
@@ -296,43 +322,98 @@ function decorateTheme(scene, root, room) {
         }
     }
 }
-function makeRoomSign(scene, room) {
-    const mesh = MeshBuilder.CreatePlane(`room-sign-${room.id}`, { width: 5.2, height: 1.35 }, scene);
-    const texture = new DynamicTexture(`room-sign-tex-${room.id}`, { width: 1024, height: 256 }, scene, false);
-    texture.hasAlpha = true;
-    paintSign(texture, room, room.players ?? 0, 'WAITING...');
-    const m = new StandardMaterial(`room-sign-mat-${room.id}`, scene);
+function hexRgb(hex) {
+    const h = hex.replace('#', '');
+    return {
+        r: Number.parseInt(h.slice(0, 2), 16),
+        g: Number.parseInt(h.slice(2, 4), 16),
+        b: Number.parseInt(h.slice(4, 6), 16),
+    };
+}
+function roundedRect(ctx, x, y, w, h, r) {
+    const rad = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rad);
+    ctx.arcTo(x + w, y + h, x, y + h, rad);
+    ctx.arcTo(x, y + h, x, y, rad);
+    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.closePath();
+}
+function labelMaterial(scene, id, texture) {
+    const m = new StandardMaterial(id, scene);
     m.diffuseTexture = texture;
-    m.emissiveColor = Color3.FromHexString(room.color).scale(0.18);
+    m.opacityTexture = texture;
+    m.emissiveColor = Color3.White();
+    m.diffuseColor = Color3.White();
+    m.specularColor = Color3.Black();
     m.backFaceCulling = false;
     m.disableLighting = true;
     m.useAlphaFromDiffuseTexture = true;
-    mesh.material = m;
+    m.transparencyMode = 2;
+    return m;
+}
+function makeRoomSign(scene, room) {
+    const mesh = MeshBuilder.CreatePlane(`room-sign-${room.id}`, { width: 4.2, height: 1.05 }, scene);
+    const texture = new DynamicTexture(`room-sign-tex-${room.id}`, { width: 1024, height: 256 }, scene, false);
+    texture.hasAlpha = true;
+    paintSign(texture, room, room.players ?? 0, 'در انتظار...');
+    mesh.material = labelMaterial(scene, `room-sign-mat-${room.id}`, texture);
     mesh.billboardMode = Mesh.BILLBOARDMODE_Y;
+    mesh.isPickable = false;
+    mesh.checkCollisions = false;
     return { mesh, texture };
 }
 function paintSign(texture, room, occupants, status) {
     const ctx = texture.getContext();
+    const { r, g, b } = hexRgb(room.color);
     ctx.clearRect(0, 0, 1024, 256);
-    ctx.fillStyle = 'rgba(8,8,18,0.78)';
-    ctx.fillRect(24, 16, 976, 224);
-    ctx.fillStyle = room.color;
-    ctx.fillRect(24, 16, 18, 224);
-    texture.drawText(room.name, 70, 100, 'bold 64px Arial', '#ffffff', 'transparent', true, true);
-    texture.drawText(`${occupants}/${room.maxPlayers}   ${status}`, 70, 175, 'bold 42px Arial', '#e2e8f0', 'transparent', true, true);
+    roundedRect(ctx, 36, 28, 952, 200, 40);
+    ctx.fillStyle = `rgb(${Math.round(r * 0.55)}, ${Math.round(g * 0.55)}, ${Math.round(b * 0.55)})`;
+    ctx.fill();
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+    ctx.stroke();
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 54px Tahoma, Arial';
+    ctx.fillText(room.name, 948, 108);
+    ctx.font = 'bold 34px Tahoma, Arial';
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillText(`${occupants} از ${room.maxPlayers}   ${status}`, 948, 178);
+    ctx.shadowBlur = 0;
     texture.update();
 }
 function makeSign(scene, id, text, color) {
     const plane = MeshBuilder.CreatePlane(id, { width: 3.4, height: 0.7 }, scene);
     const tex = new DynamicTexture(`${id}-tex`, { width: 512, height: 128 }, scene, false);
     tex.hasAlpha = true;
-    tex.drawText(text, null, 84, 'bold 52px Arial', '#ffffff', 'transparent', true, true);
-    const m = new StandardMaterial(`${id}-mat`, scene);
-    m.diffuseTexture = tex;
-    m.emissiveColor = Color3.FromHexString(color).scale(0.5);
-    m.backFaceCulling = false;
-    m.disableLighting = true;
-    plane.material = m;
+    const ctx = tex.getContext();
+    ctx.clearRect(0, 0, 512, 128);
+    const { r, g, b } = hexRgb(color);
+    roundedRect(ctx, 16, 24, 480, 80, 24);
+    ctx.fillStyle = `rgb(${Math.round(r * 0.4)}, ${Math.round(g * 0.4)}, ${Math.round(b * 0.4)})`;
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = `rgb(${r}, ${g}, ${b})`;
+    ctx.stroke();
+    ctx.direction = 'rtl';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 48px Tahoma, Arial';
+    ctx.fillText(text, 256, 64);
+    ctx.shadowBlur = 0;
+    tex.update();
+    plane.material = labelMaterial(scene, `${id}-mat`, tex);
+    plane.isPickable = false;
+    plane.checkCollisions = false;
     return plane;
 }
 function spawnNpc(scene, pos, preset, id) {
@@ -341,7 +422,7 @@ function spawnNpc(scene, pos, preset, id) {
         presetKey: 'npc',
         presetKind: 'procedural',
         customConfig: preset,
-    }, id, preset.name);
+    }, id, preset.name, { collider: 'body' });
     npc.position = new Vector3(pos.x, pos.y, pos.z);
     npc.rotation.y = Math.random() * Math.PI * 2;
     return npc;
@@ -356,7 +437,7 @@ function spawnPlazaCrowd(scene, count) {
 function joinRoom(lobby, runtime, all) {
     if (runtime.occupants < runtime.def.maxPlayers)
         runtime.occupants += 1;
-    runtime.status = runtime.occupants >= runtime.def.maxPlayers ? 'GAME STARTING' : 'WAITING...';
+    runtime.status = runtime.occupants >= runtime.def.maxPlayers ? 'شروع بازی' : 'در انتظار...';
     paintSign(runtime.texture, runtime.def, runtime.occupants, runtime.status);
     lobby.emitOverlay('room-state', {
         ...serializeRooms(all),
@@ -370,7 +451,7 @@ function joinRoom(lobby, runtime, all) {
 function leaveRoom(lobby, runtime, all) {
     runtime.occupants = Math.max(runtime.def.players ?? 0, runtime.occupants - 1);
     if (runtime.occupants < runtime.def.maxPlayers) {
-        runtime.status = 'WAITING...';
+        runtime.status = 'در انتظار...';
         runtime.countdown = null;
     }
     paintSign(runtime.texture, runtime.def, runtime.occupants, runtime.status);
@@ -388,7 +469,7 @@ function serializeRooms(all) {
         })),
     };
 }
-function animateScene(scene, runtimes, lobby) {
+function animateScene(scene, runtimes, lobby, onRoomStart) {
     let t = 0;
     const lastCeil = {};
     scene.registerBeforeRender(() => {
@@ -411,14 +492,19 @@ function animateScene(scene, runtimes, lobby) {
                 const ceil = Math.max(0, Math.ceil(r.countdown));
                 if (lastCeil[r.def.id] !== ceil) {
                     lastCeil[r.def.id] = ceil;
-                    r.status = 'GAME STARTING';
-                    paintSign(runtimeSign(r), r.def, r.occupants, `STARTING ${ceil}`);
+                    r.status = 'شروع بازی';
+                    paintSign(runtimeSign(r), r.def, r.occupants, `شروع ${ceil}`);
                     lobby.emitOverlay('room-state', { ...serializeRooms(runtimes), joined: r.def.id, countdown: ceil });
                 }
                 if (r.countdown <= 0) {
                     r.countdown = null;
                     lobby.emitOverlay('room-start', {
                         roomId: r.def.id,
+                        name: r.def.name,
+                        gameSlug: r.def.gameSlug,
+                    });
+                    onRoomStart?.({
+                        id: r.def.id,
                         name: r.def.name,
                         gameSlug: r.def.gameSlug,
                     });

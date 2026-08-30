@@ -1,4 +1,9 @@
-import type { PlatformInitMessage, SdkInitPayload } from '@platform/types';
+import type { PlatformInitMessage, SdkInitPayload } from './platform-types';
+declare global {
+    interface Window {
+        __OYNA360_PLATFORM_INIT__?: PlatformInitMessage;
+    }
+}
 export declare class PlatformBridge {
     static waitForInit(timeoutMs?: number): Promise<PlatformInitMessage>;
     static fromInit(init: SdkInitPayload | PlatformInitMessage): SdkInitPayload;

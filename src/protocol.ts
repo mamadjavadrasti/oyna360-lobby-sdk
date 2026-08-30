@@ -70,12 +70,28 @@ export interface LobbyPingMessage {
   type: 'lobby:ping';
 }
 
+/** Ephemeral — never persisted. Only players currently in the room see it. */
+export interface LobbyChatMessage {
+  type: 'lobby:chat';
+  text: string;
+}
+
+export const LOBBY_CHAT_MAX_LEN = 140;
+
+export function sanitizeLobbyChat(text: unknown): string | null {
+  if (typeof text !== 'string') return null;
+  const cleaned = text.replace(/[\u0000-\u001F\u007F]/g, '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return null;
+  return cleaned.slice(0, LOBBY_CHAT_MAX_LEN);
+}
+
 export type LobbyClientMessage =
   | LobbyJoinMessage
   | LobbyMoveMessage
   | LobbyEmoteMessage
   | LobbyLeaveMessage
-  | LobbyPingMessage;
+  | LobbyPingMessage
+  | LobbyChatMessage;
 
 export interface LobbyWelcomeMessage {
   type: 'lobby:welcome';
@@ -126,6 +142,14 @@ export interface LobbyPongMessage {
   type: 'lobby:pong';
 }
 
+export interface LobbyChatBroadcastMessage {
+  type: 'lobby:chat';
+  userId: string;
+  displayName: string;
+  text: string;
+  at: number;
+}
+
 export type LobbyServerMessage =
   | LobbyWelcomeMessage
   | LobbyStateMessage
@@ -133,6 +157,7 @@ export type LobbyServerMessage =
   | LobbyPlayerLeftMessage
   | LobbyPlayerMovedMessage
   | LobbyPlayerEmoteMessage
+  | LobbyChatBroadcastMessage
   | LobbyErrorMessage
   | LobbyPongMessage;
 
@@ -145,6 +170,7 @@ export function parseLobbyClientMessage(data: unknown): LobbyClientMessage | nul
     case 'lobby:emote':
     case 'lobby:leave':
     case 'lobby:ping':
+    case 'lobby:chat':
       return data as LobbyClientMessage;
     default:
       return null;

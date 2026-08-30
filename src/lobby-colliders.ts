@@ -1,4 +1,4 @@
-import { MeshBuilder, StandardMaterial, Vector3 } from '@babylonjs/core';
+import { MeshBuilder, StandardMaterial } from '@babylonjs/core';
 import type { AbstractMesh, Scene } from '@babylonjs/core';
 
 /** Visuals the player should walk over / through (floors, signs, portal rings). */

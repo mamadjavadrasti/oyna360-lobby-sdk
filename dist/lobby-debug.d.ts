@@ -28,11 +28,21 @@ export interface LobbyDebugHandle {
     ready: boolean;
     getReport: () => LobbyDebugReport;
     setCamera: (preset: LobbyCameraPreset) => void;
+    setMoveStick: (x: number, z: number) => void;
+    getLocalPose: () => {
+        position: {
+            x: number;
+            y: number;
+            z: number;
+        };
+        rotationY: number;
+        animation: string;
+    };
     captureScreenshot: () => string | null;
 }
 declare global {
     interface Window {
-        __PLAYHUB_LOBBY_DEBUG__?: LobbyDebugHandle;
+        __OYNA360_LOBBY_DEBUG__?: LobbyDebugHandle;
     }
 }
 export declare function attachLobbyDebug(lobby: PlatformLobby, win?: Window): LobbyDebugHandle;

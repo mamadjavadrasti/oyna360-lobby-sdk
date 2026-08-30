@@ -31,6 +31,7 @@ export class ZoneManager {
 }
 export class PortalManager {
     portals = [];
+    /** Registers a portal. Hits fire `onTrigger` only — no browser navigation. */
     addPortal(options) {
         this.portals.push({
             ...options,

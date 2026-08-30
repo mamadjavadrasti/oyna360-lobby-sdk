@@ -1,5 +1,4 @@
-import type { SdkInitPayload, SdkLobbyAvatar, SdkUser } from '@platform/types';
-import type { PlatformInitMessage } from '@platform/types';
+import type { SdkInitPayload, SdkLobbyAvatar, SdkUser, PlatformInitMessage } from './platform-types';
 export type { SdkInitPayload, SdkLobbyAvatar, SdkUser, PlatformInitMessage };
 export interface Vector3 {
     x: number;
@@ -24,6 +23,8 @@ export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig 
     playerSpeed?: number;
     runMultiplier?: number;
     enableMultiplayer?: boolean;
+    /** Default true. Live room chat overlay; messages are not stored. */
+    enableChat?: boolean;
 }
 export interface PlatformLobbyCreateOptions {
     canvas: HTMLCanvasElement;
@@ -56,8 +57,11 @@ export interface LobbyPortalOptions {
     position: Vector3;
     radius?: number;
     label?: string;
+    /** Hint for the game (match key, catalog slug, etc.). The SDK never navigates on this. */
     toGameSlug?: string;
+    /** Hint for the game's own scene switch. The SDK never changes scenes. */
     toScene?: string;
+    /** Game-owned. Called when the local player enters the portal. */
     onTrigger?: () => void;
 }
 export interface LobbyPlugin {
@@ -92,6 +96,13 @@ export type LobbyEventMap = {
     error: {
         message: string;
         code?: string;
+    };
+    /** Live room chat. Not stored. */
+    chat: {
+        userId: string;
+        displayName: string;
+        text: string;
+        at: number;
     };
 };
 export type LobbyEventName = keyof LobbyEventMap;

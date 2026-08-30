@@ -1,4 +1,6 @@
 import { AvatarFactory } from './avatar-factory';
+import { HumanoidAnimator } from './humanoid-animator';
+import { removeCharacterObstacle, syncCharacterObstacle } from './lobby-colliders';
 const INTERPOLATION_MS = 100;
 export class RemotePlayerManager {
     scene;
@@ -13,10 +15,12 @@ export class RemotePlayerManager {
             return;
         let entry = this.remotes.get(player.userId);
         if (!entry) {
-            const root = AvatarFactory.create(this.scene, player.avatar, `remote-${player.userId}`, player.displayName);
+            const root = AvatarFactory.create(this.scene, player.avatar, `remote-${player.userId}`, player.displayName, { collider: 'body' });
             entry = {
                 state: player,
                 root,
+                animator: new HumanoidAnimator(root),
+                yaw: player.rotationY,
                 targetPosition: { ...player.position },
                 targetRotationY: player.rotationY,
                 targetAnimation: player.animation,
@@ -25,6 +29,7 @@ export class RemotePlayerManager {
             this.remotes.set(player.userId, entry);
             AvatarFactory.setPosition(root, player.position);
             AvatarFactory.setRotationY(root, player.rotationY);
+            syncCharacterObstacle(this.scene, root.name, player.position.x, player.position.z);
         }
         else {
             entry.state = player;
@@ -55,10 +60,11 @@ export class RemotePlayerManager {
         const entry = this.remotes.get(userId);
         if (!entry)
             return;
+        removeCharacterObstacle(this.scene, entry.root.name);
         entry.root.dispose();
         this.remotes.delete(userId);
     }
-    update(_dt) {
+    update(dt) {
         const now = Date.now();
         for (const entry of this.remotes.values()) {
             const t = Math.min(1, (now - entry.lastUpdateAt + INTERPOLATION_MS) / INTERPOLATION_MS);
@@ -66,11 +72,31 @@ export class RemotePlayerManager {
             pos.x += (entry.targetPosition.x - pos.x) * t * 0.35;
             pos.y += (entry.targetPosition.y - pos.y) * t * 0.35;
             pos.z += (entry.targetPosition.z - pos.z) * t * 0.35;
-            entry.root.rotation.y += (entry.targetRotationY - entry.root.rotation.y) * t * 0.35;
+            let d = entry.targetRotationY - entry.yaw;
+            while (d > Math.PI)
+                d -= Math.PI * 2;
+            while (d < -Math.PI)
+                d += Math.PI * 2;
+            entry.yaw += d * t * 0.35;
+            AvatarFactory.setRotationY(entry.root, entry.yaw);
+            const grounded = entry.targetAnimation !== 'jump' && entry.targetAnimation !== 'fall';
+            entry.animator.update(dt, entry.targetAnimation, grounded);
+            syncCharacterObstacle(this.scene, entry.root.name, pos.x, pos.z);
         }
+    }
+    list() {
+        return [...this.remotes.values()].map((entry) => ({
+            userId: entry.state.userId,
+            displayName: entry.state.displayName,
+            avatar: entry.state.avatar,
+            position: { ...entry.targetPosition },
+            rotationY: entry.targetRotationY,
+            animation: entry.targetAnimation,
+        }));
     }
     dispose() {
         for (const entry of this.remotes.values()) {
+            removeCharacterObstacle(this.scene, entry.root.name);
             entry.root.dispose();
         }
         this.remotes.clear();

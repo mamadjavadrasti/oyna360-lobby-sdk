@@ -1,19 +1,20 @@
-import { ArcRotateCamera, Color3, Color4, DefaultRenderingPipeline, DirectionalLight, Engine, GlowLayer, HemisphericLight, MeshBuilder, Scene, StandardMaterial, Vector3, } from '@babylonjs/core';
+import { Color3, Color4, DefaultRenderingPipeline, DirectionalLight, Engine, GlowLayer, HemisphericLight, MeshBuilder, Scene, StandardMaterial, Vector3, } from '@babylonjs/core';
+import { ThirdPersonCamera } from './third-person-camera';
 export class SceneManager {
     engine;
     scene;
-    camera;
+    thirdPerson;
     groundMaterial;
-    cameraDistance;
-    cameraHeight;
+    canvas;
     constructor(canvas, config = {}) {
+        this.canvas = canvas;
         this.engine = new Engine(canvas, true, {
             preserveDrawingBuffer: true,
             stencil: true,
         });
         this.scene = new Scene(this.engine);
-        this.cameraDistance = config.cameraDistance ?? 12;
-        this.cameraHeight = config.cameraHeight ?? 1.05;
+        this.scene.collisionsEnabled = true;
+        this.scene.gravity = new Vector3(0, -0.8, 0);
         const sky = Color3.FromHexString(config.skyColor ?? '#1a1450');
         this.scene.clearColor = new Color4(sky.r, sky.g, sky.b, 1);
         const groundSize = config.groundSize ?? 80;
@@ -23,6 +24,7 @@ export class SceneManager {
         this.groundMaterial.specularColor = new Color3(0.02, 0.02, 0.02);
         ground.material = this.groundMaterial;
         ground.checkCollisions = true;
+        ground.isPickable = true;
         ground.receiveShadows = true;
         const hemi = new HemisphericLight('hemi', new Vector3(0.2, 1, 0.15), this.scene);
         hemi.intensity = config.ambientIntensity ?? 0.55;
@@ -33,16 +35,16 @@ export class SceneManager {
         this.scene.fogMode = Scene.FOGMODE_EXP2;
         this.scene.fogDensity = config.fogDensity ?? 0.012;
         this.scene.fogColor = sky;
-        this.camera = new ArcRotateCamera('camera', Math.PI, this.cameraHeight, this.cameraDistance, new Vector3(0, 1.4, 0), this.scene);
-        this.camera.lowerRadiusLimit = 8;
-        this.camera.upperRadiusLimit = 18;
-        this.camera.lowerBetaLimit = 0.7;
-        this.camera.upperBetaLimit = 1.25;
-        this.camera.wheelPrecision = 40;
-        this.camera.panningSensibility = 0;
+        const distance = config.cameraDistance && config.cameraDistance >= 6 ? config.cameraDistance : 9.5;
+        const height = config.cameraHeight && config.cameraHeight >= 2 ? config.cameraHeight : 5;
+        this.thirdPerson = new ThirdPersonCamera(this.scene, canvas, { distance, height });
+        canvas.tabIndex = 0;
+        canvas.style.outline = 'none';
+        canvas.addEventListener('pointerdown', () => canvas.focus());
+        queueMicrotask(() => canvas.focus());
         const glow = new GlowLayer('plaza-glow', this.scene);
         glow.intensity = 0.28;
-        const fx = new DefaultRenderingPipeline('plaza-fx', true, this.scene, [this.camera]);
+        const fx = new DefaultRenderingPipeline('plaza-fx', true, this.scene, [this.thirdPerson.camera]);
         fx.bloomEnabled = true;
         fx.bloomThreshold = 0.72;
         fx.bloomWeight = 0.18;
@@ -54,14 +56,14 @@ export class SceneManager {
             fx.imageProcessing.exposure = 1.05;
         }
     }
-    followPlayer(position, rotationY) {
-        this.camera.target = new Vector3(position.x, position.y + 1.45, position.z);
-        this.camera.alpha = -rotationY + Math.PI;
-        this.camera.beta = this.cameraHeight;
-        this.camera.radius = this.cameraDistance;
+    get camera() {
+        return this.thirdPerson.camera;
+    }
+    followPlayer(position, dt, ignoreMeshes = []) {
+        this.thirdPerson.update(position, dt, ignoreMeshes);
     }
     setCameraTarget(target) {
-        this.camera.target = new Vector3(target.x, target.y + 1.4, target.z);
+        this.camera.setTarget(new Vector3(target.x, target.y + 1.4, target.z));
     }
     applyTheme(config) {
         if (config.groundColor) {
@@ -83,6 +85,7 @@ export class SceneManager {
         this.engine.resize();
     }
     dispose() {
+        this.thirdPerson.dispose(this.canvas);
         this.engine.stopRenderLoop();
         this.scene.dispose();
         this.engine.dispose();

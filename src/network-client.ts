@@ -20,6 +20,7 @@ export type NetworkClientHandlers = {
     serverTime: number;
   }) => void;
   onPlayerEmote?: (userId: string, emote: LobbyEmoteKind) => void;
+  onChat?: (payload: { userId: string; displayName: string; text: string; at: number }) => void;
   onError?: (code: string, message: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
@@ -86,6 +87,9 @@ export class NetworkClient {
       case 'lobby:player:emote':
         this.handlers.onPlayerEmote?.(msg.userId, msg.emote);
         break;
+      case 'lobby:chat':
+        this.handlers.onChat?.(msg);
+        break;
       case 'lobby:error':
         this.handlers.onError?.(msg.code, msg.message);
         break;
@@ -108,6 +112,11 @@ export class NetworkClient {
   sendEmote(emote: LobbyEmoteKind) {
     if (!this.socket?.connected) return;
     this.socket.emit('message', { type: 'lobby:emote', emote } satisfies LobbyClientMessage);
+  }
+
+  sendChat(text: string) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('message', { type: 'lobby:chat', text } satisfies LobbyClientMessage);
   }
 
   ping() {

@@ -1,7 +1,7 @@
 import { MeshBuilder, SceneLoader, Vector3 as BVector3 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import type { SdkInitPayload } from './platform-types';
-import type { LobbyEmoteKind } from './protocol';
+import { sanitizeLobbyChat, type LobbyEmoteKind } from './protocol';
 import { AvatarFactory } from './avatar-factory';
 import { LocalPlayerController } from './local-player-controller';
 import { NetworkClient } from './network-client';
@@ -16,6 +16,7 @@ import { applyLobbyCollisions } from './lobby-colliders';
 import { attachLobbyDebug, buildLobbyDebugReport } from './lobby-debug';
 import { attachPlayground, type PlaygroundSystem } from './playground/playground-system';
 import { LobbyMusic } from './lobby-music';
+import { attachLobbyChatUi } from './lobby-chat-ui';
 import type {
   LobbyEventMap,
   LobbyEventName,
@@ -47,6 +48,7 @@ export class PlatformLobby {
   private ready = false;
   private playground: PlaygroundSystem | null = null;
   private music = new LobbyMusic();
+  private chatDispose: (() => void) | null = null;
   private resizeHandler = () => this.sceneManager?.resize();
 
   private constructor(
@@ -171,6 +173,7 @@ export class PlatformLobby {
 
     this.emit('ready', undefined);
     this.ready = true;
+    if (this.config.enableChat !== false) this.attachChat();
 
     for (const plugin of this.plugins) {
       void plugin.setup(this);
@@ -200,6 +203,9 @@ export class PlatformLobby {
         },
         onPlayerEmote: (userId, emote) => {
           this.remotePlayers.applyEmote(userId, emote);
+        },
+        onChat: (payload) => {
+          this.emit('chat', payload);
         },
         onError: (code, message) => {
           this.emit('error', { code, message });
@@ -319,6 +325,29 @@ export class PlatformLobby {
     this.network?.sendEmote(emote);
   }
 
+  /** Live lobby chat. Not saved. Returns false if empty/too fast locally. */
+  sendChat(text: string) {
+    const clean = sanitizeLobbyChat(text);
+    if (!clean) return false;
+    if (this.network?.isConnected()) {
+      this.network.sendChat(clean);
+      return true;
+    }
+    this.emit('chat', {
+      userId: this.init.user.id,
+      displayName: this.init.user.displayName,
+      text: clean,
+      at: Date.now(),
+    });
+    return true;
+  }
+
+  attachChat() {
+    if (this.chatDispose) return this;
+    this.chatDispose = attachLobbyChatUi(this, this.canvas);
+    return this;
+  }
+
   /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
   setMoveStick(x: number, z: number) {
     this.localController.setStick(x, z);
@@ -390,6 +419,8 @@ export class PlatformLobby {
     if (this.destroyed) return;
     this.destroyed = true;
     window.removeEventListener('resize', this.resizeHandler);
+    this.chatDispose?.();
+    this.chatDispose = null;
     this.network?.disconnect();
     this.localController.dispose();
     this.music.dispose();

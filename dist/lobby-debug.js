@@ -26,10 +26,10 @@ export function setLobbyCameraPreset(lobby, preset) {
             cam.setTarget(new Vector3(0, 1.6, 18));
             break;
         default:
-            cam.radius = 10;
-            cam.beta = Math.PI / 3;
-            cam.alpha = -Math.PI / 2;
-            cam.setTarget(new Vector3(0, 1, 0));
+            cam.radius = 9.5;
+            cam.beta = 1.22;
+            cam.alpha = Math.PI;
+            cam.setTarget(new Vector3(0, 1.65, 0));
             break;
     }
 }
@@ -55,13 +55,22 @@ export function buildLobbyDebugReport(lobby) {
         },
         { name: 'trees', pass: meshSet.has('tree-0') },
         {
+            name: 'path_rails',
+            pass: meshSet.has('path-0-rail-L') && meshSet.has('path-0-rail-R'),
+        },
+        { name: 'fountain_blocker', pass: meshSet.has('fountain-blocker') },
+        { name: 'shop_phys', pass: meshSet.has('shop-building-shop-phys') },
+        { name: 'playground_slide', pass: meshSet.has('playground-slide-deck') },
+        { name: 'playground_trampoline', pass: meshSet.has('playground-trampoline-pad') },
+        {
             name: 'local_player',
             pass: meshSet.has('local-player-body') || meshSet.has('local-player-head'),
         },
         { name: 'local_player_nametag', pass: meshSet.has('local-player-nametag') },
     ];
-    const pos = scene.getMeshByName('local-player-body')?.position ??
-        scene.getTransformNodeByName('local-player')?.position;
+    const root = scene.getTransformNodeByName('local-player');
+    const abs = root?.getAbsolutePosition();
+    const pos = abs ?? scene.getMeshByName('local-player-body')?.getAbsolutePosition();
     return {
         ready: true,
         timestamp: new Date().toISOString(),
@@ -81,6 +90,8 @@ export function attachLobbyDebug(lobby, win = window) {
         ready: true,
         getReport: () => buildLobbyDebugReport(lobby),
         setCamera: (preset) => setLobbyCameraPreset(lobby, preset),
+        setMoveStick: (x, z) => lobby.setMoveStick(x, z),
+        getLocalPose: () => lobby.getLocalPose(),
         captureScreenshot: () => {
             const canvas = lobby.getEngine().getRenderingCanvas();
             if (!canvas)
@@ -93,7 +104,7 @@ export function attachLobbyDebug(lobby, win = window) {
             }
         },
     };
-    win.__PLAYHUB_LOBBY_DEBUG__ = handle;
+    win.__OYNA360_LOBBY_DEBUG__ = handle;
     return handle;
 }
 //# sourceMappingURL=lobby-debug.js.map

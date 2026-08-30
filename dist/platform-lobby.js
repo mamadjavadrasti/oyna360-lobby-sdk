@@ -1,5 +1,6 @@
 import { MeshBuilder, SceneLoader, Vector3 as BVector3 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
+import { sanitizeLobbyChat } from './protocol';
 import { AvatarFactory } from './avatar-factory';
 import { LocalPlayerController } from './local-player-controller';
 import { NetworkClient } from './network-client';
@@ -9,7 +10,11 @@ import { SceneManager } from './scene-manager';
 import { PortalManager, ZoneManager } from './zones';
 import { applyStarterLayout as applyStarterLayoutFn } from './starter-layout';
 import { applyPlazaLayout as applyPlazaLayoutFn } from './plaza-layout';
+import { applyLobbyCollisions } from './lobby-colliders';
 import { attachLobbyDebug, buildLobbyDebugReport } from './lobby-debug';
+import { attachPlayground } from './playground/playground-system';
+import { LobbyMusic } from './lobby-music';
+import { attachLobbyChatUi } from './lobby-chat-ui';
 export class PlatformLobby {
     canvas;
     init;
@@ -29,6 +34,9 @@ export class PlatformLobby {
     lastNetworkSend = 0;
     destroyed = false;
     ready = false;
+    playground = null;
+    music = new LobbyMusic();
+    chatDispose = null;
     resizeHandler = () => this.sceneManager?.resize();
     constructor(init, canvas, roomId, wsUrl, config = {}) {
         this.canvas = canvas;
@@ -76,8 +84,12 @@ export class PlatformLobby {
         this.sceneManager = new SceneManager(this.canvas, this.config);
         const spawn = this.config.spawnPoint ??
             this.config.spawnPoints?.[0] ?? { x: 0, y: 0, z: 0 };
-        this.localAvatar = AvatarFactory.create(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName);
-        this.localController = new LocalPlayerController(this.localAvatar, spawn, this.config);
+        this.localAvatar = AvatarFactory.create(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName, { collider: true });
+        this.localController = new LocalPlayerController(this.localAvatar, spawn, this.sceneManager.scene, () => this.sceneManager.camera, this.config);
+        this.localController.setSounds(this.music);
+        this.canvas.addEventListener('pointerdown', () => {
+            void this.music.unlock(true);
+        });
         this.remotePlayers = new RemotePlayerManager(this.sceneManager.scene, this.init.user.id);
         window.addEventListener('resize', this.resizeHandler);
         if (this.config.enableMultiplayer !== false && this.init.session.token !== 'dev-token') {
@@ -89,7 +101,8 @@ export class PlatformLobby {
             const dt = Math.min(0.05, (now - lastTime) / 1000);
             lastTime = now;
             const state = this.localController.update(dt);
-            this.sceneManager.followPlayer(this.localAvatar.position, state.rotationY);
+            this.playground?.update(dt, this.localController, state.position);
+            this.sceneManager.followPlayer(this.localAvatar.position, dt, this.localController.getIgnoreMeshes());
             this.zoneManager.updatePlayer(this.init.user.id, state.position);
             const portalHits = this.portalManager.updatePlayer(this.init.user.id, state.position);
             for (const hit of portalHits) {
@@ -99,10 +112,6 @@ export class PlatformLobby {
                     toGameSlug: hit.toGameSlug,
                     toScene: hit.toScene,
                 });
-                if (hit.toGameSlug && typeof window !== 'undefined') {
-                    const origin = window.location.origin;
-                    window.top?.location.assign(`${origin}/play/${hit.toGameSlug}`);
-                }
             }
             if (this.network?.isConnected() && now - this.lastNetworkSend > 50) {
                 this.lastNetworkSend = now;
@@ -116,6 +125,8 @@ export class PlatformLobby {
         });
         this.emit('ready', undefined);
         this.ready = true;
+        if (this.config.enableChat !== false)
+            this.attachChat();
         for (const plugin of this.plugins) {
             void plugin.setup(this);
         }
@@ -140,6 +151,9 @@ export class PlatformLobby {
             },
             onPlayerEmote: (userId, emote) => {
                 this.remotePlayers.applyEmote(userId, emote);
+            },
+            onChat: (payload) => {
+                this.emit('chat', payload);
             },
             onError: (code, message) => {
                 this.emit('error', { code, message });
@@ -173,12 +187,17 @@ export class PlatformLobby {
             void plugin.setup(this);
         return this;
     }
-    applyStarterLayout(config) {
-        applyStarterLayoutFn(this, config);
-        return this;
-    }
+    /** Optional starter-plaza template. Appearance and start routing stay in the game. */
     applyPlazaLayout(config) {
         applyPlazaLayoutFn(this, config);
+        applyLobbyCollisions(this.sceneManager.scene);
+        if (!this.playground)
+            this.playground = attachPlayground(this);
+        return this;
+    }
+    applyStarterLayout(config) {
+        applyStarterLayoutFn(this, config);
+        applyLobbyCollisions(this.sceneManager.scene);
         return this;
     }
     attachDebug(win) {
@@ -201,8 +220,26 @@ export class PlatformLobby {
             },
         });
     }
+    /**
+     * Game-owned portal. The SDK only detects the player and fires `onTrigger` / `portalTrigger`.
+     * It never navigates the browser — the game starts its own gameplay.
+     */
     addPortal(options) {
         this.portalManager.addPortal(options);
+    }
+    /** Platform identity: user, avatar, session, room. */
+    getSession() {
+        return this.init.session;
+    }
+    getUser() {
+        return this.init.user;
+    }
+    getAvatar() {
+        return this.init.avatar;
+    }
+    /** Other players currently synced in this lobby room. */
+    getPlayers() {
+        return this.remotePlayers.list();
     }
     async loadGLB(url, name) {
         const result = await SceneLoader.ImportMeshAsync('', url, undefined, this.sceneManager.scene);
@@ -220,8 +257,68 @@ export class PlatformLobby {
     playEmote(emote) {
         this.network?.sendEmote(emote);
     }
+    /** Live lobby chat. Not saved. Returns false if empty/too fast locally. */
+    sendChat(text) {
+        const clean = sanitizeLobbyChat(text);
+        if (!clean)
+            return false;
+        if (this.network?.isConnected()) {
+            this.network.sendChat(clean);
+            return true;
+        }
+        this.emit('chat', {
+            userId: this.init.user.id,
+            displayName: this.init.user.displayName,
+            text: clean,
+            at: Date.now(),
+        });
+        return true;
+    }
+    attachChat() {
+        if (this.chatDispose)
+            return this;
+        this.chatDispose = attachLobbyChatUi(this, this.canvas);
+        return this;
+    }
+    /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
+    setMoveStick(x, z) {
+        this.localController.setStick(x, z);
+    }
+    setLookStick(x, y) {
+        this.sceneManager.thirdPerson.setLookStick(x, y);
+    }
+    addLookDelta(dx, dy) {
+        this.sceneManager.thirdPerson.addLookDelta(dx, dy);
+    }
+    tryPlaygroundInteract() {
+        return this.playground?.trySlide() ?? false;
+    }
+    getLocalController() {
+        return this.localController;
+    }
+    noteMusicToggle() {
+        this.music.noteUserToggled();
+    }
+    toggleMusic() {
+        return this.music.toggleMuted();
+    }
+    setMusicMuted(muted) {
+        this.music.setMuted(muted);
+    }
+    isMusicMuted() {
+        return this.music.isMuted();
+    }
+    jump() {
+        this.localController.jump();
+    }
+    setSprint(on) {
+        this.localController.setSprint(on);
+    }
     getInitPayload() {
         return this.init;
+    }
+    getLocalPose() {
+        return this.localController.getState();
     }
     getScene() {
         return this.sceneManager.scene;
@@ -239,8 +336,12 @@ export class PlatformLobby {
             return;
         this.destroyed = true;
         window.removeEventListener('resize', this.resizeHandler);
+        this.chatDispose?.();
+        this.chatDispose = null;
         this.network?.disconnect();
         this.localController.dispose();
+        this.music.dispose();
+        this.playground?.dispose();
         this.remotePlayers.dispose();
         this.sceneManager.dispose();
         this.zoneManager.clear();

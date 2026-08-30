@@ -1,9 +1,23 @@
 const INIT_TIMEOUT_MS = 15000;
+if (typeof window !== 'undefined') {
+    window.addEventListener('message', (event) => {
+        const data = event.data;
+        if (!data || typeof data !== 'object')
+            return;
+        if (data.type === 'platform:init') {
+            window.__OYNA360_PLATFORM_INIT__ = data;
+        }
+    });
+}
 export class PlatformBridge {
     static waitForInit(timeoutMs = INIT_TIMEOUT_MS) {
         return new Promise((resolve, reject) => {
             if (window.parent === window) {
                 reject(new Error('Not running inside platform iframe'));
+                return;
+            }
+            if (window.__OYNA360_PLATFORM_INIT__) {
+                resolve(window.__OYNA360_PLATFORM_INIT__);
                 return;
             }
             const timer = setTimeout(() => {

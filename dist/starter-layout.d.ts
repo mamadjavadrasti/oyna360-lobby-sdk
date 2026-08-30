@@ -5,6 +5,7 @@ export interface StarterLayoutConfig {
     showZones?: boolean;
     showGameplayPortal?: boolean;
     showGrid?: boolean;
+    /** Game-owned portal hints. `slug` is only passed through `portalTrigger` — the SDK never navigates. */
     gamePortals?: Array<{
         slug: string;
         name: string;

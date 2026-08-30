@@ -3,6 +3,9 @@ export { PlatformBridge } from './platform-bridge';
 export { AvatarFactory } from './avatar-factory';
 export { SceneManager } from './scene-manager';
 export { LocalPlayerController } from './local-player-controller';
+export { HumanoidAnimator } from './humanoid-animator';
+export { ThirdPersonCamera } from './third-person-camera';
+export { applyLobbyCollisions, syncCharacterObstacle, removeCharacterObstacle } from './lobby-colliders';
 export { NetworkClient } from './network-client';
 export { RemotePlayerManager } from './remote-player-manager';
 export { ZoneManager, PortalManager } from './zones';
@@ -11,5 +14,9 @@ export { attachLobbyDebug, buildLobbyDebugReport, setLobbyCameraPreset } from '.
 export { attachNameTag } from './name-tag';
 export { applyStarterLayout, createPortalVisual } from './starter-layout';
 export { applyPlazaLayout, DEFAULT_PLAZA_ROOMS } from './plaza-layout';
-export { LOBBY_PROTOCOL_VERSION, GLOBAL_AVATAR_ROOM_ID, gameRoomId } from '@platform/lobby-protocol';
+export { attachPlayground } from './playground/playground-system';
+export { LobbyMusic } from './lobby-music';
+export { attachLobbyChatUi } from './lobby-chat-ui';
+export { SLIDE_ANCHOR, TRAMPOLINE_ANCHOR } from './playground/playground-layout';
+export { LOBBY_PROTOCOL_VERSION, GLOBAL_AVATAR_ROOM_ID, gameRoomId, LOBBY_CHAT_MAX_LEN, sanitizeLobbyChat, } from './protocol';
 //# sourceMappingURL=index.js.map

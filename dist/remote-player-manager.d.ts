@@ -1,5 +1,5 @@
 import type { Scene } from '@babylonjs/core';
-import type { LobbyAnimationState, LobbyEmoteKind, LobbyPlayerState } from '@platform/lobby-protocol';
+import type { LobbyAnimationState, LobbyEmoteKind, LobbyPlayerState } from './protocol';
 export declare class RemotePlayerManager {
     private readonly scene;
     private readonly selfUserId;
@@ -14,7 +14,19 @@ export declare class RemotePlayerManager {
     }): void;
     applyEmote(userId: string, emote: LobbyEmoteKind): void;
     remove(userId: string): void;
-    update(_dt: number): void;
+    update(dt: number): void;
+    list(): {
+        userId: string;
+        displayName: string;
+        avatar: import("./protocol").SdkLobbyAvatar;
+        position: {
+            x: number;
+            y: number;
+            z: number;
+        };
+        rotationY: number;
+        animation: LobbyAnimationState;
+    }[];
     dispose(): void;
 }
 //# sourceMappingURL=remote-player-manager.d.ts.map
