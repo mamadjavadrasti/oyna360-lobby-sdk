@@ -13,9 +13,8 @@ interface RemoteEntry {
   targetRotationY: number;
   targetAnimation: LobbyAnimationState;
   lastUpdateAt: number;
+  airHold: number;
 }
-
-const INTERPOLATION_MS = 100;
 
 export class RemotePlayerManager {
   private readonly remotes = new Map<string, RemoteEntry>();
@@ -46,6 +45,7 @@ export class RemotePlayerManager {
         targetRotationY: player.rotationY,
         targetAnimation: player.animation,
         lastUpdateAt: Date.now(),
+        airHold: player.animation === 'jump' || player.animation === 'fall' ? 0.28 : 0,
       };
       this.remotes.set(player.userId, entry);
       AvatarFactory.setPosition(root, player.position);
@@ -57,6 +57,9 @@ export class RemotePlayerManager {
       entry.targetRotationY = player.rotationY;
       entry.targetAnimation = player.animation;
       entry.lastUpdateAt = Date.now();
+      if (player.animation === 'jump' || player.animation === 'fall') {
+        entry.airHold = Math.max(entry.airHold, 0.28);
+      }
     }
   }
 
@@ -72,6 +75,9 @@ export class RemotePlayerManager {
     entry.targetRotationY = payload.rotationY;
     entry.targetAnimation = payload.animation;
     entry.lastUpdateAt = Date.now();
+    if (payload.animation === 'jump' || payload.animation === 'fall') {
+      entry.airHold = Math.max(entry.airHold, payload.animation === 'jump' ? 0.28 : 0.16);
+    }
   }
 
   applyEmote(userId: string, emote: LobbyEmoteKind) {
@@ -91,20 +97,28 @@ export class RemotePlayerManager {
   }
 
   update(dt: number) {
-    const now = Date.now();
     for (const entry of this.remotes.values()) {
-      const t = Math.min(1, (now - entry.lastUpdateAt + INTERPOLATION_MS) / INTERPOLATION_MS);
+      const airborne = entry.targetAnimation === 'jump' || entry.targetAnimation === 'fall';
+      if (airborne) {
+        entry.airHold = Math.max(entry.airHold, entry.targetAnimation === 'jump' ? 0.28 : 0.16);
+      } else {
+        entry.airHold = Math.max(0, entry.airHold - dt);
+      }
+      const pose = entry.airHold > 0
+        ? (entry.targetAnimation === 'fall' ? 'fall' : 'jump')
+        : entry.targetAnimation;
+      const xzFollow = 1 - Math.exp(-(airborne || entry.airHold > 0 ? 16 : 12) * dt);
+      const yFollow = 1 - Math.exp(-(airborne || entry.airHold > 0 ? 36 : 12) * dt);
       const pos = entry.root.position;
-      pos.x += (entry.targetPosition.x - pos.x) * t * 0.35;
-      pos.y += (entry.targetPosition.y - pos.y) * t * 0.35;
-      pos.z += (entry.targetPosition.z - pos.z) * t * 0.35;
+      pos.x += (entry.targetPosition.x - pos.x) * xzFollow;
+      pos.y += (entry.targetPosition.y - pos.y) * yFollow;
+      pos.z += (entry.targetPosition.z - pos.z) * xzFollow;
       let d = entry.targetRotationY - entry.yaw;
       while (d > Math.PI) d -= Math.PI * 2;
       while (d < -Math.PI) d += Math.PI * 2;
-      entry.yaw += d * t * 0.35;
+      entry.yaw += d * xzFollow;
       AvatarFactory.setRotationY(entry.root, entry.yaw);
-      const grounded = entry.targetAnimation !== 'jump' && entry.targetAnimation !== 'fall';
-      entry.animator.update(dt, entry.targetAnimation, grounded);
+      entry.animator.update(dt, pose, pose !== 'jump' && pose !== 'fall');
       syncCharacterObstacle(this.scene, entry.root.name, pos.x, pos.z);
     }
   }
