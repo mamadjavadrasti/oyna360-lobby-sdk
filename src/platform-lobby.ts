@@ -389,8 +389,22 @@ export class PlatformLobby {
     this.localController.jump();
   }
 
+  setJumpHeld(on: boolean) {
+    this.localController.setJumpHeld(on);
+  }
+
   setSprint(on: boolean) {
     this.localController.setSprint(on);
+  }
+
+  /** Ask the hub to close this lobby iframe and return home. Never navigates itself. */
+  requestExit() {
+    if (typeof window === 'undefined' || window.parent === window) return;
+    const token = this.init.session?.token;
+    if (token) {
+      window.parent.postMessage({ type: 'platform:session:end', sessionToken: token }, '*');
+    }
+    window.parent.postMessage({ type: 'platform:lobby:exit' }, '*');
   }
 
   getInitPayload() {

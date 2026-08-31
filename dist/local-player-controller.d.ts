@@ -11,6 +11,8 @@ export declare class LocalPlayerController {
     private stickZ;
     private sprintHeld;
     private jumpQueued;
+    private jumpHeldPointer;
+    private jumpHeldKey;
     private jumpLock;
     private yaw;
     private hVel;
@@ -33,6 +35,7 @@ export declare class LocalPlayerController {
     setStick(x: number, z: number): void;
     setSounds(audio: LobbyMusic): void;
     setSprint(on: boolean): void;
+    setJumpHeld(on: boolean): void;
     jump(): void;
     isSlideActive(): boolean;
     isGrounded(): boolean;

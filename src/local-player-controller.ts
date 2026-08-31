@@ -48,6 +48,8 @@ export class LocalPlayerController {
   private stickZ = 0;
   private sprintHeld = false;
   private jumpQueued = false;
+  private jumpHeldPointer = false;
+  private jumpHeldKey = false;
   private jumpLock = 0;
   private yaw = 0;
   private hVel = new Vector3(0, 0, 0);
@@ -105,6 +107,11 @@ export class LocalPlayerController {
     this.sprintHeld = on;
   }
 
+  setJumpHeld(on: boolean) {
+    this.jumpHeldPointer = on;
+    if (on) this.jumpQueued = true;
+  }
+
   jump() {
     if (this.slideActive) return;
     this.jumpQueued = true;
@@ -141,6 +148,9 @@ export class LocalPlayerController {
     this.stickX = 0;
     this.stickZ = 0;
     this.sprintHeld = false;
+    this.jumpHeldPointer = false;
+    this.jumpHeldKey = false;
+    this.jumpQueued = false;
     this.hVel.set(0, 0, 0);
     this.vy = 0;
     this.grounded = false;
@@ -191,6 +201,7 @@ export class LocalPlayerController {
     }
     if (e.code === 'Space') {
       e.preventDefault();
+      this.jumpHeldKey = true;
       if (!e.repeat) this.jumpQueued = true;
       return;
     }
@@ -201,6 +212,7 @@ export class LocalPlayerController {
 
   private onKeyUp = (e: KeyboardEvent) => {
     this.codes.delete(e.code);
+    if (e.code === 'Space') this.jumpHeldKey = false;
   };
 
   private onBlur = () => {
@@ -208,6 +220,9 @@ export class LocalPlayerController {
     this.stickX = 0;
     this.stickZ = 0;
     this.sprintHeld = false;
+    this.jumpHeldPointer = false;
+    this.jumpHeldKey = false;
+    this.jumpQueued = false;
   };
 
   update(dt: number) {
@@ -256,7 +271,8 @@ export class LocalPlayerController {
     this.jumpLock = Math.max(0, this.jumpLock - dt);
     this.refreshGrounded();
 
-    if (this.jumpQueued && this.grounded && this.jumpLock <= 0) {
+    const jumpHeld = this.jumpHeldPointer || this.jumpHeldKey;
+    if ((this.jumpQueued || jumpHeld) && this.grounded && this.jumpLock <= 0) {
       this.vy = 8.2;
       this.grounded = false;
       this.jumpLock = 0.16;

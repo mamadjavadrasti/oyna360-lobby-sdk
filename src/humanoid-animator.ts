@@ -131,29 +131,16 @@ export class HumanoidAnimator {
     rig.visual.position.y = bounce * 0.35;
   }
 
-  private poseAir(rig: AvatarRig, jumping: boolean) {
-    if (jumping) {
-      rig.legL.rotation.x = -1.15;
-      rig.legR.rotation.x = -0.62;
-      rig.armL.rotation.x = -1.55;
-      rig.armR.rotation.x = -1.38;
-      rig.armL.rotation.z = 0.42;
-      rig.armR.rotation.z = -0.42;
-      rig.torso.rotation.x = -0.22;
-      rig.torso.rotation.y = 0;
-      rig.head.rotation.x = 0.14;
-      rig.visual.position.y = 0.06;
-      return;
-    }
-    rig.legL.rotation.x = -0.38;
-    rig.legR.rotation.x = -0.18;
-    rig.armL.rotation.x = 0.72;
-    rig.armR.rotation.x = 0.88;
-    rig.armL.rotation.z = 0.32;
-    rig.armR.rotation.z = -0.32;
-    rig.torso.rotation.x = 0.28;
+  private poseAir(rig: AvatarRig, _jumping: boolean) {
+    rig.legL.rotation.x = -0.45;
+    rig.legR.rotation.x = -0.32;
+    rig.armL.rotation.x = 0.35;
+    rig.armR.rotation.x = 0.45;
+    rig.armL.rotation.z = 0.25;
+    rig.armR.rotation.z = -0.25;
+    rig.torso.rotation.x = -0.08;
     rig.torso.rotation.y = 0;
-    rig.head.rotation.x = 0.08;
+    rig.head.rotation.x = 0;
     rig.visual.position.y = 0;
   }
 

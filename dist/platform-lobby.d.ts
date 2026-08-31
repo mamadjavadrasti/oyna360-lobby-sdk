@@ -85,7 +85,10 @@ export declare class PlatformLobby {
     setMusicMuted(muted: boolean): void;
     isMusicMuted(): boolean;
     jump(): void;
+    setJumpHeld(on: boolean): void;
     setSprint(on: boolean): void;
+    /** Ask the hub to close this lobby iframe and return home. Never navigates itself. */
+    requestExit(): void;
     getInitPayload(): SdkInitPayload;
     getLocalPose(): {
         position: {

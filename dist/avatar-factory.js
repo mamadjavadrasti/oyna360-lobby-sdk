@@ -86,12 +86,13 @@ export class AvatarFactory {
             root = collider;
         }
         else if (options.collider === 'body') {
-            const body = MeshBuilder.CreateCylinder(`${name}-bodycol`, { diameter: 0.78, height: 1.85, tessellation: 10 }, scene);
-            body.parent = visual;
-            body.position.y = 0.92;
-            body.isVisible = false;
-            body.isPickable = false;
-            body.checkCollisions = false;
+            collider = MeshBuilder.CreateBox(`${name}-bodycol`, { width: 0.12, height: 0.12, depth: 0.12 }, scene);
+            collider.isVisible = false;
+            collider.isPickable = false;
+            collider.checkCollisions = false;
+            visual.parent = collider;
+            visual.position.set(0, 0, 0);
+            root = collider;
         }
         root.name = name;
         const rig = { root, visual, collider, torso, head, armL, armR, legL, legR };

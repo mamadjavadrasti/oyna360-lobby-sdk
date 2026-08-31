@@ -43,6 +43,8 @@ export class LocalPlayerController {
     stickZ = 0;
     sprintHeld = false;
     jumpQueued = false;
+    jumpHeldPointer = false;
+    jumpHeldKey = false;
     jumpLock = 0;
     yaw = 0;
     hVel = new Vector3(0, 0, 0);
@@ -91,6 +93,11 @@ export class LocalPlayerController {
     setSprint(on) {
         this.sprintHeld = on;
     }
+    setJumpHeld(on) {
+        this.jumpHeldPointer = on;
+        if (on)
+            this.jumpQueued = true;
+    }
     jump() {
         if (this.slideActive)
             return;
@@ -124,6 +131,9 @@ export class LocalPlayerController {
         this.stickX = 0;
         this.stickZ = 0;
         this.sprintHeld = false;
+        this.jumpHeldPointer = false;
+        this.jumpHeldKey = false;
+        this.jumpQueued = false;
         this.hVel.set(0, 0, 0);
         this.vy = 0;
         this.grounded = false;
@@ -170,6 +180,7 @@ export class LocalPlayerController {
         }
         if (e.code === 'Space') {
             e.preventDefault();
+            this.jumpHeldKey = true;
             if (!e.repeat)
                 this.jumpQueued = true;
             return;
@@ -181,12 +192,17 @@ export class LocalPlayerController {
     };
     onKeyUp = (e) => {
         this.codes.delete(e.code);
+        if (e.code === 'Space')
+            this.jumpHeldKey = false;
     };
     onBlur = () => {
         this.codes.clear();
         this.stickX = 0;
         this.stickZ = 0;
         this.sprintHeld = false;
+        this.jumpHeldPointer = false;
+        this.jumpHeldKey = false;
+        this.jumpQueued = false;
     };
     update(dt) {
         if (this.disposed)
@@ -234,7 +250,8 @@ export class LocalPlayerController {
             this.hVel.set(0, 0, 0);
         this.jumpLock = Math.max(0, this.jumpLock - dt);
         this.refreshGrounded();
-        if (this.jumpQueued && this.grounded && this.jumpLock <= 0) {
+        const jumpHeld = this.jumpHeldPointer || this.jumpHeldKey;
+        if ((this.jumpQueued || jumpHeld) && this.grounded && this.jumpLock <= 0) {
             this.vy = 8.2;
             this.grounded = false;
             this.jumpLock = 0.16;
