@@ -1,6 +1,7 @@
 import { Quaternion, Ray, Vector3 } from '@babylonjs/core';
 import type { AbstractMesh, ArcRotateCamera, Mesh, Scene, TransformNode } from '@babylonjs/core';
 import type { LobbyAnimationState } from './protocol';
+import { syncCharacterObstacle } from './lobby-colliders';
 import { AvatarFactory } from './avatar-factory';
 import { HumanoidAnimator } from './humanoid-animator';
 import type { PlatformLobbyConfig, Vector3 as Vec3 } from './types';
@@ -115,6 +116,21 @@ export class LocalPlayerController {
   jump() {
     if (this.slideActive) return;
     this.jumpQueued = true;
+  }
+
+  teleportTo(pos: Vec3, rotationY?: number) {
+    this.spawn = { ...pos };
+    this.root.position.set(pos.x, pos.y, pos.z);
+    this.hVel.set(0, 0, 0);
+    this.vy = 0;
+    this.grounded = true;
+    this.jumpLock = 0;
+    this.slideActive = false;
+    if (rotationY !== undefined) {
+      this.yaw = rotationY;
+      this.syncVisualYaw();
+    }
+    syncCharacterObstacle(this.scene, this.root.name, pos.x, pos.z);
   }
 
   isSlideActive() {

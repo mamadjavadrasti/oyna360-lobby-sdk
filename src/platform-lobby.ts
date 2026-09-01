@@ -19,6 +19,7 @@ import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
 import { attachLobbyPresenceUi } from './lobby-presence-ui';
 import { ensureLobbyPersianFont } from './lobby-font';
+import { provisionalSpawnSlot, resolveSpawnPose } from './spawn-utils';
 import type {
   LobbyEventMap,
   LobbyEventName,
@@ -109,8 +110,12 @@ export class PlatformLobby {
     await ensureLobbyPersianFont();
     this.sceneManager = new SceneManager(this.canvas, this.config);
 
-    const spawn = this.config.spawnPoint ??
-      this.config.spawnPoints?.[0] ?? { x: 0, y: 0, z: 0 };
+    const layout = this.config;
+    const provisionalSlot = provisionalSpawnSlot(
+      this.init.user.id,
+      layout.spawnSlotCount ?? layout.spawnPoints?.length ?? 16,
+    );
+    const spawnPose = resolveSpawnPose(layout, provisionalSlot);
 
     this.localAvatar = AvatarFactory.create(
       this.sceneManager.scene,
@@ -122,11 +127,12 @@ export class PlatformLobby {
     );
     this.localController = new LocalPlayerController(
       this.localAvatar,
-      spawn,
+      spawnPose.position,
       this.sceneManager.scene,
       () => this.sceneManager.camera,
       this.config,
     );
+    this.localController.teleportTo(spawnPose.position, spawnPose.rotationY);
     this.localController.setSounds(this.music);
     this.canvas.addEventListener('pointerdown', () => {
       void this.music.unlock(true);
@@ -194,7 +200,8 @@ export class PlatformLobby {
       this.roomId,
       this.init.session.token,
       {
-        onWelcome: (_self, players) => {
+        onWelcome: (self, players) => {
+          this.localController.teleportTo(self.position, self.rotationY);
           for (const p of players) this.remotePlayers.upsert(p);
           this.emit('connected', undefined);
         },

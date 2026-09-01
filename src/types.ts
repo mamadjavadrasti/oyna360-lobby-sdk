@@ -19,6 +19,10 @@ export interface LobbyThemeConfig {
 export interface LobbySpawnConfig {
   spawnPoint?: Vector3;
   spawnPoints?: Vector3[];
+  /** Ring radius when auto-spreading players around `spawnPoint`. */
+  spawnSlotRadius?: number;
+  /** Number of spawn slots on the ring. */
+  spawnSlotCount?: number;
 }
 
 export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig {

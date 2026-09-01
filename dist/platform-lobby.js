@@ -17,6 +17,7 @@ import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
 import { attachLobbyPresenceUi } from './lobby-presence-ui';
 import { ensureLobbyPersianFont } from './lobby-font';
+import { provisionalSpawnSlot, resolveSpawnPose } from './spawn-utils';
 export class PlatformLobby {
     canvas;
     init;
@@ -86,10 +87,12 @@ export class PlatformLobby {
     async bootstrap() {
         await ensureLobbyPersianFont();
         this.sceneManager = new SceneManager(this.canvas, this.config);
-        const spawn = this.config.spawnPoint ??
-            this.config.spawnPoints?.[0] ?? { x: 0, y: 0, z: 0 };
+        const layout = this.config;
+        const provisionalSlot = provisionalSpawnSlot(this.init.user.id, layout.spawnSlotCount ?? layout.spawnPoints?.length ?? 16);
+        const spawnPose = resolveSpawnPose(layout, provisionalSlot);
         this.localAvatar = AvatarFactory.create(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName, this.init.user.username, { collider: true });
-        this.localController = new LocalPlayerController(this.localAvatar, spawn, this.sceneManager.scene, () => this.sceneManager.camera, this.config);
+        this.localController = new LocalPlayerController(this.localAvatar, spawnPose.position, this.sceneManager.scene, () => this.sceneManager.camera, this.config);
+        this.localController.teleportTo(spawnPose.position, spawnPose.rotationY);
         this.localController.setSounds(this.music);
         this.canvas.addEventListener('pointerdown', () => {
             void this.music.unlock(true);
@@ -140,7 +143,8 @@ export class PlatformLobby {
     }
     connectNetwork() {
         this.network = new NetworkClient(this.wsUrl, this.roomId, this.init.session.token, {
-            onWelcome: (_self, players) => {
+            onWelcome: (self, players) => {
+                this.localController.teleportTo(self.position, self.rotationY);
                 for (const p of players)
                     this.remotePlayers.upsert(p);
                 this.emit('connected', undefined);

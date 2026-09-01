@@ -37,6 +37,7 @@ export declare class LocalPlayerController {
     setSprint(on: boolean): void;
     setJumpHeld(on: boolean): void;
     jump(): void;
+    teleportTo(pos: Vec3, rotationY?: number): void;
     isSlideActive(): boolean;
     isGrounded(): boolean;
     getVerticalVelocity(): number;

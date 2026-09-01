@@ -1,4 +1,5 @@
 import { Quaternion, Ray, Vector3 } from '@babylonjs/core';
+import { syncCharacterObstacle } from './lobby-colliders';
 import { AvatarFactory } from './avatar-factory';
 import { HumanoidAnimator } from './humanoid-animator';
 const MOVE_CODES = new Set([
@@ -102,6 +103,20 @@ export class LocalPlayerController {
         if (this.slideActive)
             return;
         this.jumpQueued = true;
+    }
+    teleportTo(pos, rotationY) {
+        this.spawn = { ...pos };
+        this.root.position.set(pos.x, pos.y, pos.z);
+        this.hVel.set(0, 0, 0);
+        this.vy = 0;
+        this.grounded = true;
+        this.jumpLock = 0;
+        this.slideActive = false;
+        if (rotationY !== undefined) {
+            this.yaw = rotationY;
+            this.syncVisualYaw();
+        }
+        syncCharacterObstacle(this.scene, this.root.name, pos.x, pos.z);
     }
     isSlideActive() {
         return this.slideActive;

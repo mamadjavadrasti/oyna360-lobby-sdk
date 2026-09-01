@@ -19,6 +19,7 @@ export { LobbyMusic } from './lobby-music';
 export { attachLobbyChatUi } from './lobby-chat-ui';
 export { attachLobbyPresenceUi } from './lobby-presence-ui';
 export { formatPlayerLabel, formatPlayerLabelParts, formatPlayerHandle, formatAvatarTagLabel } from './player-label';
+export { DEFAULT_LOBBY_SPAWN, lobbySpawnPose, provisionalSpawnSlot, resolveSpawnPose, spawnLayoutFromConfig, } from './spawn-utils';
 export { ensureLobbyPersianFont, lobbyCanvasFont, LOBBY_UI_FONT } from './lobby-font';
 export { SLIDE_ANCHOR, TRAMPOLINE_ANCHOR } from './playground/playground-layout';
 export { LOBBY_QUALITY, detectLobbyQuality, isTouchDevice, lobbyQualitySettings, resolveLobbyQuality, } from './quality';
