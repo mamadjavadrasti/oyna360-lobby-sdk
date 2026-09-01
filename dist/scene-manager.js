@@ -1,4 +1,5 @@
 import { Color3, Color4, DefaultRenderingPipeline, DirectionalLight, Engine, GlowLayer, HemisphericLight, MeshBuilder, Scene, StandardMaterial, Vector3, } from '@babylonjs/core';
+import { lobbyQualitySettings } from './quality';
 import { ThirdPersonCamera } from './third-person-camera';
 export class SceneManager {
     engine;
@@ -8,9 +9,12 @@ export class SceneManager {
     canvas;
     constructor(canvas, config = {}) {
         this.canvas = canvas;
-        this.engine = new Engine(canvas, true, {
+        const quality = lobbyQualitySettings(config.quality);
+        this.engine = new Engine(canvas, quality.antialias, {
             preserveDrawingBuffer: true,
             stencil: true,
+            adaptToDeviceRatio: true,
+            limitDeviceRatio: quality.pixelRatioCap,
         });
         this.scene = new Scene(this.engine);
         this.scene.collisionsEnabled = true;
@@ -45,11 +49,11 @@ export class SceneManager {
         const glow = new GlowLayer('plaza-glow', this.scene);
         glow.intensity = 0.28;
         const fx = new DefaultRenderingPipeline('plaza-fx', true, this.scene, [this.thirdPerson.camera]);
-        fx.bloomEnabled = true;
+        fx.bloomEnabled = quality.bloom;
         fx.bloomThreshold = 0.72;
-        fx.bloomWeight = 0.18;
-        fx.bloomKernel = 32;
-        fx.fxaaEnabled = true;
+        fx.bloomWeight = quality.bloomWeight;
+        fx.bloomKernel = quality.bloomKernel;
+        fx.fxaaEnabled = quality.fxaa;
         fx.imageProcessingEnabled = true;
         if (fx.imageProcessing) {
             fx.imageProcessing.contrast = 1.12;
@@ -82,7 +86,7 @@ export class SceneManager {
         });
     }
     resize() {
-        this.engine.resize();
+        this.engine.resize(true);
     }
     dispose() {
         this.thirdPerson.dispose(this.canvas);

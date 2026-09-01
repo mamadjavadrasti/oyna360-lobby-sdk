@@ -25,6 +25,8 @@ export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig 
     enableMultiplayer?: boolean;
     /** Default true. Live room chat overlay; messages are not stored. */
     enableChat?: boolean;
+    /** `auto` picks a tier from device hints; default `auto`. */
+    quality?: import('./quality').LobbyQualityLevel | 'auto';
 }
 export interface PlatformLobbyCreateOptions {
     canvas: HTMLCanvasElement;

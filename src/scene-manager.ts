@@ -13,6 +13,7 @@ import {
 } from '@babylonjs/core';
 import type { AbstractMesh, ArcRotateCamera } from '@babylonjs/core';
 import type { PlatformLobbyConfig } from './types';
+import { lobbyQualitySettings } from './quality';
 import { ThirdPersonCamera } from './third-person-camera';
 
 export class SceneManager {
@@ -24,9 +25,12 @@ export class SceneManager {
 
   constructor(canvas: HTMLCanvasElement, config: PlatformLobbyConfig = {}) {
     this.canvas = canvas;
-    this.engine = new Engine(canvas, true, {
+    const quality = lobbyQualitySettings(config.quality);
+    this.engine = new Engine(canvas, quality.antialias, {
       preserveDrawingBuffer: true,
       stencil: true,
+      adaptToDeviceRatio: true,
+      limitDeviceRatio: quality.pixelRatioCap,
     });
     this.scene = new Scene(this.engine);
     this.scene.collisionsEnabled = true;
@@ -70,11 +74,11 @@ export class SceneManager {
     glow.intensity = 0.28;
 
     const fx = new DefaultRenderingPipeline('plaza-fx', true, this.scene, [this.thirdPerson.camera]);
-    fx.bloomEnabled = true;
+    fx.bloomEnabled = quality.bloom;
     fx.bloomThreshold = 0.72;
-    fx.bloomWeight = 0.18;
-    fx.bloomKernel = 32;
-    fx.fxaaEnabled = true;
+    fx.bloomWeight = quality.bloomWeight;
+    fx.bloomKernel = quality.bloomKernel;
+    fx.fxaaEnabled = quality.fxaa;
     fx.imageProcessingEnabled = true;
     if (fx.imageProcessing) {
       fx.imageProcessing.contrast = 1.12;
@@ -113,7 +117,7 @@ export class SceneManager {
   }
 
   resize() {
-    this.engine.resize();
+    this.engine.resize(true);
   }
 
   dispose() {

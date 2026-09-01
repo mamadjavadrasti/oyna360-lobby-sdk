@@ -41,6 +41,15 @@ export { ensureLobbyPersianFont, lobbyCanvasFont, LOBBY_UI_FONT } from './lobby-
 export { SLIDE_ANCHOR, TRAMPOLINE_ANCHOR } from './playground/playground-layout';
 
 export {
+  LOBBY_QUALITY,
+  detectLobbyQuality,
+  isTouchDevice,
+  lobbyQualitySettings,
+  resolveLobbyQuality,
+} from './quality';
+export type { LobbyQualityLevel, LobbyQualitySettings } from './quality';
+
+export {
   LOBBY_PROTOCOL_VERSION,
   GLOBAL_AVATAR_ROOM_ID,
   gameRoomId,
