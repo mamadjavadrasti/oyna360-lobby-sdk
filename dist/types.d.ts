@@ -76,9 +76,12 @@ export type LobbyEventMap = {
     playerJoined: {
         userId: string;
         displayName: string;
+        username?: string;
     };
     playerLeft: {
         userId: string;
+        displayName?: string;
+        username?: string;
     };
     zoneEnter: {
         zoneId: string;
@@ -102,6 +105,7 @@ export type LobbyEventMap = {
     /** Live room chat. Not stored. */
     chat: {
         userId: string;
+        username?: string;
         displayName: string;
         text: string;
         at: number;

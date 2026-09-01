@@ -10,7 +10,7 @@ import type {
 export type NetworkClientHandlers = {
   onWelcome?: (self: LobbyPlayerState, players: LobbyPlayerState[]) => void;
   onPlayerJoined?: (player: LobbyPlayerState) => void;
-  onPlayerLeft?: (userId: string) => void;
+  onPlayerLeft?: (payload: { userId: string; username?: string; displayName?: string }) => void;
   onPlayerMoved?: (payload: {
     userId: string;
     position: LobbyPlayerState['position'];
@@ -20,7 +20,7 @@ export type NetworkClientHandlers = {
     serverTime: number;
   }) => void;
   onPlayerEmote?: (userId: string, emote: LobbyEmoteKind) => void;
-  onChat?: (payload: { userId: string; displayName: string; text: string; at: number }) => void;
+  onChat?: (payload: { userId: string; username?: string; displayName: string; text: string; at: number }) => void;
   onError?: (code: string, message: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
@@ -79,7 +79,11 @@ export class NetworkClient {
         this.handlers.onPlayerJoined?.(msg.player);
         break;
       case 'lobby:player:left':
-        this.handlers.onPlayerLeft?.(msg.userId);
+        this.handlers.onPlayerLeft?.({
+          userId: msg.userId,
+          username: msg.username,
+          displayName: msg.displayName,
+        });
         break;
       case 'lobby:player:moved':
         this.handlers.onPlayerMoved?.(msg);

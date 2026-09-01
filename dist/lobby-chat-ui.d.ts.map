@@ -1,1 +1,1 @@
-{"version":3,"file":"lobby-chat-ui.d.ts","sourceRoot":"","sources":["../src/lobby-chat-ui.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,kBAAkB,CAAC;AAUtD,wBAAgB,iBAAiB,CAAC,KAAK,EAAE,aAAa,EAAE,MAAM,EAAE,iBAAiB,cA6JhF"}
+{"version":3,"file":"lobby-chat-ui.d.ts","sourceRoot":"","sources":["../src/lobby-chat-ui.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,kBAAkB,CAAC;AAWtD,wBAAgB,iBAAiB,CAAC,KAAK,EAAE,aAAa,EAAE,MAAM,EAAE,iBAAiB,cA8JhF"}

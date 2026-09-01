@@ -48,7 +48,11 @@ export class NetworkClient {
                 this.handlers.onPlayerJoined?.(msg.player);
                 break;
             case 'lobby:player:left':
-                this.handlers.onPlayerLeft?.(msg.userId);
+                this.handlers.onPlayerLeft?.({
+                    userId: msg.userId,
+                    username: msg.username,
+                    displayName: msg.displayName,
+                });
                 break;
             case 'lobby:player:moved':
                 this.handlers.onPlayerMoved?.(msg);

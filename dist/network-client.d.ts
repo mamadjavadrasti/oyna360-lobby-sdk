@@ -2,7 +2,11 @@ import type { LobbyEmoteKind, LobbyMoveMessage, LobbyPlayerState } from './proto
 export type NetworkClientHandlers = {
     onWelcome?: (self: LobbyPlayerState, players: LobbyPlayerState[]) => void;
     onPlayerJoined?: (player: LobbyPlayerState) => void;
-    onPlayerLeft?: (userId: string) => void;
+    onPlayerLeft?: (payload: {
+        userId: string;
+        username?: string;
+        displayName?: string;
+    }) => void;
     onPlayerMoved?: (payload: {
         userId: string;
         position: LobbyPlayerState['position'];
@@ -14,6 +18,7 @@ export type NetworkClientHandlers = {
     onPlayerEmote?: (userId: string, emote: LobbyEmoteKind) => void;
     onChat?: (payload: {
         userId: string;
+        username?: string;
         displayName: string;
         text: string;
         at: number;

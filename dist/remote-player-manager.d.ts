@@ -14,6 +14,10 @@ export declare class RemotePlayerManager {
     }): void;
     applyEmote(userId: string, emote: LobbyEmoteKind): void;
     remove(userId: string): void;
+    getIdentity(userId: string): {
+        displayName: string;
+        username: string;
+    } | null;
     update(dt: number): void;
     list(): {
         userId: string;

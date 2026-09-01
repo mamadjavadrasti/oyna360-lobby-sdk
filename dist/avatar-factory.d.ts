@@ -13,7 +13,7 @@ export interface AvatarRig {
     legR: TransformNode;
 }
 export declare class AvatarFactory {
-    static create(scene: Scene, avatar: SdkLobbyAvatar, name?: string, displayName?: string, options?: {
+    static create(scene: Scene, avatar: SdkLobbyAvatar, name?: string, displayName?: string, username?: string, options?: {
         collider?: boolean | 'player' | 'body';
     }): TransformNode;
     static getRig(root: TransformNode): AvatarRig | null;

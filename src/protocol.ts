@@ -114,6 +114,8 @@ export interface LobbyPlayerJoinedMessage {
 export interface LobbyPlayerLeftMessage {
   type: 'lobby:player:left';
   userId: string;
+  username?: string;
+  displayName?: string;
 }
 
 export interface LobbyPlayerMovedMessage {
@@ -145,6 +147,7 @@ export interface LobbyPongMessage {
 export interface LobbyChatBroadcastMessage {
   type: 'lobby:chat';
   userId: string;
+  username?: string;
   displayName: string;
   text: string;
   at: number;

@@ -64,6 +64,7 @@ export class AvatarFactory {
     avatar: SdkLobbyAvatar,
     name = 'avatar',
     displayName?: string,
+    username?: string,
     options: { collider?: boolean | 'player' | 'body' } = {},
   ): TransformNode {
     const fromPreset = PRESET_LOOKS[avatar.presetKey] ?? PRESET_LOOKS['default-1'];
@@ -120,7 +121,7 @@ export class AvatarFactory {
     legR.position.set(0.18, 0.9, 0);
     box(scene, `${name}-leg-1`, { width: 0.26, height: 0.88, depth: 0.28 }, pantsMat, legR, { x: 0, y: -0.44, z: 0 });
 
-    if (displayName) attachNameTag(scene, visual, displayName, name);
+    attachNameTag(scene, visual, displayName ?? '', username ?? '', name);
 
     let collider: Mesh | null = null;
     let root: TransformNode = visual;

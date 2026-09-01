@@ -423,7 +423,7 @@ function spawnNpc(scene, pos, preset, id) {
         presetKey: 'npc',
         presetKind: 'procedural',
         customConfig: preset,
-    }, id, preset.name, { collider: 'body' });
+    }, id, preset.name, id, { collider: 'body' });
     npc.position = new Vector3(pos.x, pos.y, pos.z);
     npc.rotation.y = Math.random() * Math.PI * 2;
     return npc;

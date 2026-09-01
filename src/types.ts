@@ -85,8 +85,8 @@ export interface LobbyPlugin {
 export type LobbyEventMap = {
   ready: void;
   destroyed: void;
-  playerJoined: { userId: string; displayName: string };
-  playerLeft: { userId: string };
+  playerJoined: { userId: string; displayName: string; username?: string };
+  playerLeft: { userId: string; displayName?: string; username?: string };
   zoneEnter: { zoneId: string; playerId: string };
   zoneExit: { zoneId: string; playerId: string };
   portalTrigger: { portalId: string; toGameSlug?: string; toScene?: string };
@@ -94,7 +94,7 @@ export type LobbyEventMap = {
   disconnected: void;
   error: { message: string; code?: string };
   /** Live room chat. Not stored. */
-  chat: { userId: string; displayName: string; text: string; at: number };
+  chat: { userId: string; username?: string; displayName: string; text: string; at: number };
 };
 
 export type LobbyEventName = keyof LobbyEventMap;

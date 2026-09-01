@@ -26,7 +26,7 @@ export class RemotePlayerManager {
             existing.state = player;
             return;
         }
-        const root = AvatarFactory.create(this.scene, player.avatar, `remote-${player.userId}`, player.displayName, { collider: 'body' });
+        const root = AvatarFactory.create(this.scene, player.avatar, `remote-${player.userId}`, player.displayName, player.username, { collider: 'body' });
         const entry = {
             state: player,
             root,
@@ -64,6 +64,15 @@ export class RemotePlayerManager {
         removeCharacterObstacle(this.scene, entry.root.name);
         entry.root.dispose();
         this.remotes.delete(userId);
+    }
+    getIdentity(userId) {
+        const entry = this.remotes.get(userId);
+        if (!entry)
+            return null;
+        return {
+            displayName: entry.state.displayName,
+            username: entry.state.username,
+        };
     }
     update(dt) {
         for (const entry of this.remotes.values()) {

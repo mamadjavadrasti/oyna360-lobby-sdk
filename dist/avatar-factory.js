@@ -25,7 +25,7 @@ function box(scene, name, size, material, parent, local) {
     return mesh;
 }
 export class AvatarFactory {
-    static create(scene, avatar, name = 'avatar', displayName, options = {}) {
+    static create(scene, avatar, name = 'avatar', displayName, username, options = {}) {
         const fromPreset = PRESET_LOOKS[avatar.presetKey] ?? PRESET_LOOKS['default-1'];
         const config = {
             ...fromPreset,
@@ -70,8 +70,7 @@ export class AvatarFactory {
         legR.parent = visual;
         legR.position.set(0.18, 0.9, 0);
         box(scene, `${name}-leg-1`, { width: 0.26, height: 0.88, depth: 0.28 }, pantsMat, legR, { x: 0, y: -0.44, z: 0 });
-        if (displayName)
-            attachNameTag(scene, visual, displayName, name);
+        attachNameTag(scene, visual, displayName ?? '', username ?? '', name);
         let collider = null;
         let root = visual;
         if (options.collider === true || options.collider === 'player') {

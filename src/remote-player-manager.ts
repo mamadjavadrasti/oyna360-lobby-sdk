@@ -47,6 +47,7 @@ export class RemotePlayerManager {
       player.avatar,
       `remote-${player.userId}`,
       player.displayName,
+      player.username,
       { collider: 'body' },
     );
     const entry: RemoteEntry = {
@@ -91,6 +92,15 @@ export class RemotePlayerManager {
     removeCharacterObstacle(this.scene, entry.root.name);
     entry.root.dispose();
     this.remotes.delete(userId);
+  }
+
+  getIdentity(userId: string) {
+    const entry = this.remotes.get(userId);
+    if (!entry) return null;
+    return {
+      displayName: entry.state.displayName,
+      username: entry.state.username,
+    };
   }
 
   update(dt: number) {

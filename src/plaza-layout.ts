@@ -524,6 +524,7 @@ function spawnNpc(scene: Scene, pos: Vec3, preset: (typeof NPC_PRESETS)[number],
     },
     id,
     preset.name,
+    id,
     { collider: 'body' },
   );
   npc.position = new Vector3(pos.x, pos.y, pos.z);

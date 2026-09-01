@@ -15,6 +15,7 @@ import { attachLobbyDebug, buildLobbyDebugReport } from './lobby-debug';
 import { attachPlayground } from './playground/playground-system';
 import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
+import { attachLobbyPresenceUi } from './lobby-presence-ui';
 import { ensureLobbyPersianFont } from './lobby-font';
 export class PlatformLobby {
     canvas;
@@ -86,7 +87,7 @@ export class PlatformLobby {
         this.sceneManager = new SceneManager(this.canvas, this.config);
         const spawn = this.config.spawnPoint ??
             this.config.spawnPoints?.[0] ?? { x: 0, y: 0, z: 0 };
-        this.localAvatar = AvatarFactory.create(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName, { collider: true });
+        this.localAvatar = AvatarFactory.create(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName, this.init.user.username, { collider: true });
         this.localController = new LocalPlayerController(this.localAvatar, spawn, this.sceneManager.scene, () => this.sceneManager.camera, this.config);
         this.localController.setSounds(this.music);
         this.canvas.addEventListener('pointerdown', () => {
@@ -142,11 +143,20 @@ export class PlatformLobby {
             },
             onPlayerJoined: (player) => {
                 this.remotePlayers.upsert(player);
-                this.emit('playerJoined', { userId: player.userId, displayName: player.displayName });
+                this.emit('playerJoined', {
+                    userId: player.userId,
+                    displayName: player.displayName,
+                    username: player.username,
+                });
             },
-            onPlayerLeft: (userId) => {
-                this.remotePlayers.remove(userId);
-                this.emit('playerLeft', { userId });
+            onPlayerLeft: (payload) => {
+                const info = this.remotePlayers.getIdentity(payload.userId);
+                this.remotePlayers.remove(payload.userId);
+                this.emit('playerLeft', {
+                    userId: payload.userId,
+                    displayName: payload.displayName ?? info?.displayName,
+                    username: payload.username ?? info?.username,
+                });
             },
             onPlayerMoved: (payload) => {
                 this.remotePlayers.applyMove(payload);
@@ -268,6 +278,7 @@ export class PlatformLobby {
             return false;
         this.emit('chat', {
             userId: this.init.user.id,
+            username: this.init.user.username,
             displayName: this.init.user.displayName,
             text: clean,
             at: Date.now(),
@@ -278,7 +289,12 @@ export class PlatformLobby {
     attachChat() {
         if (this.chatDispose)
             return this;
-        this.chatDispose = attachLobbyChatUi(this, this.canvas);
+        const offChat = attachLobbyChatUi(this, this.canvas);
+        const offPresence = attachLobbyPresenceUi(this);
+        this.chatDispose = () => {
+            offChat();
+            offPresence();
+        };
         return this;
     }
     /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
