@@ -1,5 +1,5 @@
-export function formatPlayerHandle(displayName, username) {
-    return (username?.trim() || displayName?.trim() || 'بازیکن').slice(0, 24);
+export function formatPlayerHandle(_displayName, username) {
+    return (username?.trim() || 'بازیکن').slice(0, 24);
 }
 /** 3D name tags: username only. */
 export function formatAvatarTagLabel(_displayName, username) {
