@@ -28,6 +28,7 @@ export declare class PlatformLobby {
     private playground;
     private music;
     private chatDispose;
+    private presenceDispose;
     private resizeHandler;
     private constructor();
     static create(options: PlatformLobbyCreateOptions): Promise<PlatformLobby>;

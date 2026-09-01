@@ -9,5 +9,5 @@ export function formatPlayerLabelParts(displayName?: string, username?: string):
   const title = (displayName?.trim() || username?.trim() || 'بازیکن').slice(0, 22);
   const id = username?.trim().slice(0, 18) ?? '';
   if (!id || id === title) return { title, subtitle: null };
-  return { title, subtitle: id };
+  return { title, subtitle: `@${id}` };
 }

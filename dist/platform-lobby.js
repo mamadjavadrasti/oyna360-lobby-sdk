@@ -39,6 +39,7 @@ export class PlatformLobby {
     playground = null;
     music = new LobbyMusic();
     chatDispose = null;
+    presenceDispose = null;
     resizeHandler = () => this.sceneManager?.resize();
     constructor(init, canvas, roomId, wsUrl, config = {}) {
         this.canvas = canvas;
@@ -128,6 +129,9 @@ export class PlatformLobby {
         });
         this.emit('ready', undefined);
         this.ready = true;
+        if (this.config.enableMultiplayer !== false) {
+            this.presenceDispose = attachLobbyPresenceUi(this);
+        }
         if (this.config.enableChat !== false)
             this.attachChat();
         for (const plugin of this.plugins) {
@@ -289,12 +293,7 @@ export class PlatformLobby {
     attachChat() {
         if (this.chatDispose)
             return this;
-        const offChat = attachLobbyChatUi(this, this.canvas);
-        const offPresence = attachLobbyPresenceUi(this);
-        this.chatDispose = () => {
-            offChat();
-            offPresence();
-        };
+        this.chatDispose = attachLobbyChatUi(this, this.canvas);
         return this;
     }
     /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
@@ -368,6 +367,8 @@ export class PlatformLobby {
         window.removeEventListener('resize', this.resizeHandler);
         this.chatDispose?.();
         this.chatDispose = null;
+        this.presenceDispose?.();
+        this.presenceDispose = null;
         this.network?.disconnect();
         this.localController.dispose();
         this.music.dispose();

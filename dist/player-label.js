@@ -10,6 +10,6 @@ export function formatPlayerLabelParts(displayName, username) {
     const id = username?.trim().slice(0, 18) ?? '';
     if (!id || id === title)
         return { title, subtitle: null };
-    return { title, subtitle: id };
+    return { title, subtitle: `@${id}` };
 }
 //# sourceMappingURL=player-label.js.map
