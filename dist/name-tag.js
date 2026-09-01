@@ -1,38 +1,33 @@
 import { Color3, DynamicTexture, Mesh, MeshBuilder, StandardMaterial, } from '@babylonjs/core';
 import { lobbyCanvasFont } from './lobby-font';
-import { formatPlayerLabelParts } from './player-label';
+import { formatAvatarTagLabel } from './player-label';
 export function attachNameTag(scene, parent, displayName, username, id) {
-    const { title, subtitle } = formatPlayerLabelParts(displayName, username);
-    const plane = MeshBuilder.CreatePlane(`${id}-nametag`, { width: 2.4, height: subtitle ? 0.62 : 0.48 }, scene);
+    const label = formatAvatarTagLabel(displayName, username);
+    const plane = MeshBuilder.CreatePlane(`${id}-nametag`, { width: 2.2, height: 0.48 }, scene);
     plane.parent = parent;
     plane.position.y = 2.34;
     plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
     plane.isPickable = false;
     plane.checkCollisions = false;
-    const tex = new DynamicTexture(`${id}-nametag-tex`, { width: 512, height: subtitle ? 160 : 128 }, scene, false);
+    const tex = new DynamicTexture(`${id}-nametag-tex`, { width: 512, height: 128 }, scene, false);
     tex.hasAlpha = true;
     const ctx = tex.getContext();
     const w = 512;
-    const h = subtitle ? 160 : 128;
+    const h = 128;
     ctx.clearRect(0, 0, w, h);
     ctx.direction = 'rtl';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const pillW = Math.min(w - 24, Math.max(title.length, subtitle?.length ?? 0) * 22 + 48);
-    const pillH = subtitle ? 96 : 72;
+    const pillW = Math.min(w - 24, label.length * 22 + 48);
+    const pillH = 72;
     const pillX = (w - pillW) / 2;
     const pillY = (h - pillH) / 2;
     ctx.fillStyle = 'rgba(8, 8, 20, 0.78)';
     roundRect(ctx, pillX, pillY, pillW, pillH, 18);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = lobbyCanvasFont(subtitle ? 40 : 44);
-    ctx.fillText(title, w / 2, subtitle ? h / 2 - 18 : h / 2);
-    if (subtitle) {
-        ctx.fillStyle = '#c4b5fd';
-        ctx.font = lobbyCanvasFont(28);
-        ctx.fillText(subtitle, w / 2, h / 2 + 22);
-    }
+    ctx.font = lobbyCanvasFont(44);
+    ctx.fillText(label, w / 2, h / 2);
     tex.update();
     const mat = new StandardMaterial(`${id}-nametag-mat`, scene);
     mat.diffuseTexture = tex;

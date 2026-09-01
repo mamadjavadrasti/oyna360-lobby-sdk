@@ -38,7 +38,7 @@ export { attachPlayground } from './playground/playground-system';
 export { LobbyMusic } from './lobby-music';
 export { attachLobbyChatUi } from './lobby-chat-ui';
 export { attachLobbyPresenceUi } from './lobby-presence-ui';
-export { formatPlayerLabel, formatPlayerLabelParts } from './player-label';
+export { formatPlayerLabel, formatPlayerLabelParts, formatPlayerHandle, formatAvatarTagLabel } from './player-label';
 export { ensureLobbyPersianFont, lobbyCanvasFont, LOBBY_UI_FONT } from './lobby-font';
 export { SLIDE_ANCHOR, TRAMPOLINE_ANCHOR } from './playground/playground-layout';
 

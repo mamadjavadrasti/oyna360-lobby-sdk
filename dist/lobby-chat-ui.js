@@ -1,6 +1,6 @@
 import { LOBBY_UI_FONT, ensureLobbyPersianFont } from './lobby-font';
 import { LOBBY_CHAT_MAX_LEN } from './protocol';
-import { formatPlayerLabel } from './player-label';
+import { formatPlayerHandle } from './player-label';
 const SEND_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M3.4 11.2 20.1 3.4c.7-.3 1.4.4 1.1 1.1l-7.8 16.7c-.3.7-1.3.6-1.5-.2l-1.8-6.6-6.6-1.8c-.8-.2-.9-1.2-.2-1.4Z"/></svg>';
 const ICON_BTN = `pointer-events:auto;width:42px;height:42px;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(8,8,20,.55);color:#fff;font-size:16px;cursor:pointer;display:grid;place-items:center;padding:0;font-family:${LOBBY_UI_FONT}`;
 export function attachLobbyChatUi(lobby, canvas) {
@@ -124,7 +124,7 @@ export function attachLobbyChatUi(lobby, canvas) {
         line.style.wordBreak = 'break-word';
         const who = document.createElement('b');
         who.style.color = '#c4b5fd';
-        who.textContent = mine ? 'شما' : formatPlayerLabel(displayName, username);
+        who.textContent = mine ? 'شما' : formatPlayerHandle(displayName, username);
         line.append(who, document.createTextNode(`: ${text}`));
         log.append(line);
         while (log.childElementCount > 40)
@@ -134,7 +134,7 @@ export function attachLobbyChatUi(lobby, canvas) {
             return;
         if (mine)
             return;
-        const label = formatPlayerLabel(displayName, username);
+        const label = formatPlayerHandle(displayName, username);
         toast.textContent = `${label}: ${text}`;
         toast.style.display = 'block';
         if (toastTimer)

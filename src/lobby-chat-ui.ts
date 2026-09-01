@@ -1,7 +1,7 @@
 import type { PlatformLobby } from './platform-lobby';
 import { LOBBY_UI_FONT, ensureLobbyPersianFont } from './lobby-font';
 import { LOBBY_CHAT_MAX_LEN } from './protocol';
-import { formatPlayerLabel } from './player-label';
+import { formatPlayerHandle } from './player-label';
 
 const SEND_ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M3.4 11.2 20.1 3.4c.7-.3 1.4.4 1.1 1.1l-7.8 16.7c-.3.7-1.3.6-1.5-.2l-1.8-6.6-6.6-1.8c-.8-.2-.9-1.2-.2-1.4Z"/></svg>';
@@ -146,14 +146,14 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
     line.style.wordBreak = 'break-word';
     const who = document.createElement('b');
     who.style.color = '#c4b5fd';
-    who.textContent = mine ? 'شما' : formatPlayerLabel(displayName, username);
+    who.textContent = mine ? 'شما' : formatPlayerHandle(displayName, username);
     line.append(who, document.createTextNode(`: ${text}`));
     log.append(line);
     while (log.childElementCount > 40) log.firstElementChild?.remove();
     log.scrollTop = log.scrollHeight;
     if (isOpen()) return;
     if (mine) return;
-    const label = formatPlayerLabel(displayName, username);
+    const label = formatPlayerHandle(displayName, username);
     toast.textContent = `${label}: ${text}`;
     toast.style.display = 'block';
     if (toastTimer) window.clearTimeout(toastTimer);

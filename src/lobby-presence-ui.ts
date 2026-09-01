@@ -1,6 +1,6 @@
 import type { PlatformLobby } from './platform-lobby';
 import { LOBBY_UI_FONT } from './lobby-font';
-import { formatPlayerLabel } from './player-label';
+import { formatPlayerHandle } from './player-label';
 
 const MAX_ITEMS = 5;
 const ITEM_MS = 4500;
@@ -34,11 +34,11 @@ export function attachLobbyPresenceUi(lobby: PlatformLobby): () => void {
   };
 
   const offJoin = lobby.on('playerJoined', ({ displayName, username }) => {
-    push(`${formatPlayerLabel(displayName, username)} وارد لابی شد`, 'join');
+    push(`${formatPlayerHandle(displayName, username)} وارد لابی شد`, 'join');
   });
 
   const offLeave = lobby.on('playerLeft', ({ displayName, username }) => {
-    push(`${formatPlayerLabel(displayName, username)} از لابی خارج شد`, 'leave');
+    push(`${formatPlayerHandle(displayName, username)} از لابی خارج شد`, 'leave');
   });
 
   return () => {
@@ -61,11 +61,13 @@ function ensurePresenceRoot(lobby: PlatformLobby): HTMLElement {
   root.setAttribute('aria-live', 'polite');
   root.style.cssText = [
     'position:absolute',
-    'top:64px',
-    'left:14px',
+    'top:72px',
+    'right:14px',
+    'left:auto',
     'z-index:19',
     'display:flex',
     'flex-direction:column',
+    'align-items:flex-end',
     'gap:6px',
     'max-width:min(260px,42vw)',
     'pointer-events:none',
