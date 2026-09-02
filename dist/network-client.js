@@ -42,7 +42,10 @@ export class NetworkClient {
     handleServerMessage(msg) {
         switch (msg.type) {
             case 'lobby:welcome':
-                this.handlers.onWelcome?.(msg.self, msg.players);
+                this.handlers.onWelcome?.(msg.self, msg.players, {
+                    friendUserIds: msg.friendUserIds,
+                    voicePeers: msg.voicePeers,
+                });
                 break;
             case 'lobby:player:joined':
                 this.handlers.onPlayerJoined?.(msg.player);
@@ -62,6 +65,27 @@ export class NetworkClient {
                 break;
             case 'lobby:chat':
                 this.handlers.onChat?.(msg);
+                break;
+            case 'lobby:voice:state':
+                this.handlers.onVoiceState?.(msg.peers, msg.friendUserIds);
+                break;
+            case 'lobby:voice:joined':
+                this.handlers.onVoiceJoined?.(msg.peer);
+                break;
+            case 'lobby:voice:left':
+                this.handlers.onVoiceLeft?.(msg.userId);
+                break;
+            case 'lobby:voice:mute':
+                this.handlers.onVoiceMute?.(msg.userId, msg.muted);
+                break;
+            case 'lobby:voice:offer':
+                this.handlers.onVoiceOffer?.(msg.fromUserId, msg.sdp);
+                break;
+            case 'lobby:voice:answer':
+                this.handlers.onVoiceAnswer?.(msg.fromUserId, msg.sdp);
+                break;
+            case 'lobby:voice:ice':
+                this.handlers.onVoiceIce?.(msg.fromUserId, msg.candidate);
                 break;
             case 'lobby:error':
                 this.handlers.onError?.(msg.code, msg.message);
@@ -90,6 +114,36 @@ export class NetworkClient {
         if (!this.socket?.connected)
             return;
         this.socket.emit('message', { type: 'lobby:chat', text });
+    }
+    sendVoiceJoin(mode) {
+        if (!this.socket?.connected)
+            return;
+        this.socket.emit('message', { type: 'lobby:voice:join', mode });
+    }
+    sendVoiceLeave() {
+        if (!this.socket?.connected)
+            return;
+        this.socket.emit('message', { type: 'lobby:voice:leave' });
+    }
+    sendVoiceMute(muted) {
+        if (!this.socket?.connected)
+            return;
+        this.socket.emit('message', { type: 'lobby:voice:mute', muted });
+    }
+    sendVoiceOffer(toUserId, sdp) {
+        if (!this.socket?.connected)
+            return;
+        this.socket.emit('message', { type: 'lobby:voice:offer', toUserId, sdp });
+    }
+    sendVoiceAnswer(toUserId, sdp) {
+        if (!this.socket?.connected)
+            return;
+        this.socket.emit('message', { type: 'lobby:voice:answer', toUserId, sdp });
+    }
+    sendVoiceIce(toUserId, candidate) {
+        if (!this.socket?.connected)
+            return;
+        this.socket.emit('message', { type: 'lobby:voice:ice', toUserId, candidate });
     }
     ping() {
         if (!this.socket?.connected)

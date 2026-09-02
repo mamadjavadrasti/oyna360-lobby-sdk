@@ -22,6 +22,9 @@ export { attachPlayground } from './playground/playground-system';
 export { LobbyMusic } from './lobby-music';
 export { attachLobbyChatUi } from './lobby-chat-ui';
 export { attachLobbyPresenceUi } from './lobby-presence-ui';
+export { attachLobbyVoiceUi } from './lobby-voice-ui';
+export { LobbyVoiceChat } from './voice-chat';
+export type { VoiceChatState, VoiceSignaling } from './voice-chat';
 export { formatPlayerLabel, formatPlayerLabelParts, formatPlayerHandle, formatAvatarTagLabel } from './player-label';
 export { DEFAULT_LOBBY_SPAWN, lobbySpawnPose, provisionalSpawnSlot, resolveSpawnPose, spawnLayoutFromConfig, } from './spawn-utils';
 export type { LobbySpawnLayout, LobbySpawnPose } from './spawn-utils';
@@ -30,4 +33,5 @@ export { SLIDE_ANCHOR, TRAMPOLINE_ANCHOR } from './playground/playground-layout'
 export { LOBBY_QUALITY, detectLobbyQuality, isTouchDevice, lobbyQualitySettings, resolveLobbyQuality, } from './quality';
 export type { LobbyQualityLevel, LobbyQualitySettings } from './quality';
 export { LOBBY_PROTOCOL_VERSION, GLOBAL_AVATAR_ROOM_ID, gameRoomId, LOBBY_CHAT_MAX_LEN, sanitizeLobbyChat, } from './protocol';
+export type { LobbyVoiceMode, LobbyVoicePeerState } from './protocol';
 //# sourceMappingURL=index.d.ts.map

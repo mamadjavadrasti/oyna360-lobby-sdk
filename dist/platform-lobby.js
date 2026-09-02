@@ -16,8 +16,10 @@ import { attachPlayground } from './playground/playground-system';
 import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
 import { attachLobbyPresenceUi } from './lobby-presence-ui';
+import { attachLobbyVoiceUi } from './lobby-voice-ui';
 import { ensureLobbyPersianFont } from './lobby-font';
 import { provisionalSpawnSlot, resolveSpawnPose } from './spawn-utils';
+import { LobbyVoiceChat } from './voice-chat';
 export class PlatformLobby {
     canvas;
     init;
@@ -41,6 +43,8 @@ export class PlatformLobby {
     music = new LobbyMusic();
     chatDispose = null;
     presenceDispose = null;
+    voiceDispose = null;
+    voiceChat = null;
     resizeHandler = () => this.sceneManager?.resize();
     constructor(init, canvas, roomId, wsUrl, config = {}) {
         this.canvas = canvas;
@@ -137,14 +141,30 @@ export class PlatformLobby {
         }
         if (this.config.enableChat !== false)
             this.attachChat();
+        if (this.config.enableVoice !== false && this.config.enableMultiplayer !== false) {
+            this.attachVoice();
+        }
         for (const plugin of this.plugins) {
             void plugin.setup(this);
         }
     }
     connectNetwork() {
+        this.voiceChat = new LobbyVoiceChat({
+            sendJoin: (mode) => this.network?.sendVoiceJoin(mode),
+            sendLeave: () => this.network?.sendVoiceLeave(),
+            sendMute: (muted) => this.network?.sendVoiceMute(muted),
+            sendOffer: (toUserId, sdp) => this.network?.sendVoiceOffer(toUserId, sdp),
+            sendAnswer: (toUserId, sdp) => this.network?.sendVoiceAnswer(toUserId, sdp),
+            sendIce: (toUserId, candidate) => this.network?.sendVoiceIce(toUserId, candidate),
+        });
+        this.voiceChat.setContext(this.init.user.id, []);
         this.network = new NetworkClient(this.wsUrl, this.roomId, this.init.session.token, {
-            onWelcome: (self, players) => {
+            onWelcome: (self, players, meta) => {
                 this.localController.teleportTo(self.position, self.rotationY);
+                this.voiceChat?.setContext(this.init.user.id, meta?.friendUserIds ?? []);
+                if (meta?.voicePeers) {
+                    this.voiceChat?.handleVoiceState(meta.voicePeers, meta?.friendUserIds ?? []);
+                }
                 for (const p of players)
                     this.remotePlayers.upsert(p);
                 this.emit('connected', undefined);
@@ -176,6 +196,27 @@ export class PlatformLobby {
                 if (payload.userId === this.init.user.id)
                     return;
                 this.emit('chat', payload);
+            },
+            onVoiceState: (peers, friendUserIds) => {
+                this.voiceChat?.handleVoiceState(peers, friendUserIds);
+            },
+            onVoiceJoined: (peer) => {
+                this.voiceChat?.handleVoiceJoined(peer);
+            },
+            onVoiceLeft: (userId) => {
+                this.voiceChat?.handleVoiceLeft(userId);
+            },
+            onVoiceMute: (userId, muted) => {
+                this.voiceChat?.handleVoiceMute(userId, muted);
+            },
+            onVoiceOffer: (fromUserId, sdp) => {
+                void this.voiceChat?.handleOffer(fromUserId, sdp);
+            },
+            onVoiceAnswer: (fromUserId, sdp) => {
+                void this.voiceChat?.handleAnswer(fromUserId, sdp);
+            },
+            onVoiceIce: (fromUserId, candidate) => {
+                void this.voiceChat?.handleIce(fromUserId, candidate);
             },
             onError: (code, message) => {
                 this.emit('error', { code, message });
@@ -300,6 +341,15 @@ export class PlatformLobby {
         this.chatDispose = attachLobbyChatUi(this, this.canvas);
         return this;
     }
+    attachVoice() {
+        if (this.voiceDispose || !this.voiceChat)
+            return this;
+        this.voiceDispose = attachLobbyVoiceUi(this);
+        return this;
+    }
+    getVoiceChat() {
+        return this.voiceChat;
+    }
     /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
     setMoveStick(x, z) {
         this.localController.setStick(x, z);
@@ -373,6 +423,10 @@ export class PlatformLobby {
         this.chatDispose = null;
         this.presenceDispose?.();
         this.presenceDispose = null;
+        this.voiceDispose?.();
+        this.voiceDispose = null;
+        this.voiceChat?.dispose();
+        this.voiceChat = null;
         this.network?.disconnect();
         this.localController.dispose();
         this.music.dispose();

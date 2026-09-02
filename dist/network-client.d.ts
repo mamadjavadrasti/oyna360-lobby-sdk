@@ -1,6 +1,9 @@
-import type { LobbyEmoteKind, LobbyMoveMessage, LobbyPlayerState } from './protocol';
+import type { LobbyEmoteKind, LobbyMoveMessage, LobbyPlayerState, LobbyVoiceMode, LobbyVoicePeerState, RtcIceCandidate, RtcSessionDescription } from './protocol';
 export type NetworkClientHandlers = {
-    onWelcome?: (self: LobbyPlayerState, players: LobbyPlayerState[]) => void;
+    onWelcome?: (self: LobbyPlayerState, players: LobbyPlayerState[], meta?: {
+        friendUserIds?: string[];
+        voicePeers?: LobbyVoicePeerState[];
+    }) => void;
     onPlayerJoined?: (player: LobbyPlayerState) => void;
     onPlayerLeft?: (payload: {
         userId: string;
@@ -23,6 +26,13 @@ export type NetworkClientHandlers = {
         text: string;
         at: number;
     }) => void;
+    onVoiceState?: (peers: LobbyVoicePeerState[], friendUserIds: string[]) => void;
+    onVoiceJoined?: (peer: LobbyVoicePeerState) => void;
+    onVoiceLeft?: (userId: string) => void;
+    onVoiceMute?: (userId: string, muted: boolean) => void;
+    onVoiceOffer?: (fromUserId: string, sdp: RtcSessionDescription) => void;
+    onVoiceAnswer?: (fromUserId: string, sdp: RtcSessionDescription) => void;
+    onVoiceIce?: (fromUserId: string, candidate: RtcIceCandidate) => void;
     onError?: (code: string, message: string) => void;
     onConnected?: () => void;
     onDisconnected?: () => void;
@@ -42,6 +52,12 @@ export declare class NetworkClient {
     sendMove(payload: Omit<LobbyMoveMessage, 'type' | 'seq'>): void;
     sendEmote(emote: LobbyEmoteKind): void;
     sendChat(text: string): void;
+    sendVoiceJoin(mode: LobbyVoiceMode): void;
+    sendVoiceLeave(): void;
+    sendVoiceMute(muted: boolean): void;
+    sendVoiceOffer(toUserId: string, sdp: RtcSessionDescription): void;
+    sendVoiceAnswer(toUserId: string, sdp: RtcSessionDescription): void;
+    sendVoiceIce(toUserId: string, candidate: RtcIceCandidate): void;
     ping(): void;
     disconnect(): void;
     isConnected(): boolean;

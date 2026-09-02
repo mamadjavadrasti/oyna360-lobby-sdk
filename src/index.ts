@@ -38,6 +38,9 @@ export { attachPlayground } from './playground/playground-system';
 export { LobbyMusic } from './lobby-music';
 export { attachLobbyChatUi } from './lobby-chat-ui';
 export { attachLobbyPresenceUi } from './lobby-presence-ui';
+export { attachLobbyVoiceUi } from './lobby-voice-ui';
+export { LobbyVoiceChat } from './voice-chat';
+export type { VoiceChatState, VoiceSignaling } from './voice-chat';
 export { formatPlayerLabel, formatPlayerLabelParts, formatPlayerHandle, formatAvatarTagLabel } from './player-label';
 export {
   DEFAULT_LOBBY_SPAWN,
@@ -66,3 +69,4 @@ export {
   LOBBY_CHAT_MAX_LEN,
   sanitizeLobbyChat,
 } from './protocol';
+export type { LobbyVoiceMode, LobbyVoicePeerState } from './protocol';

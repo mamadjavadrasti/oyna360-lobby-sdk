@@ -20,6 +20,12 @@ export function parseLobbyClientMessage(data) {
         case 'lobby:leave':
         case 'lobby:ping':
         case 'lobby:chat':
+        case 'lobby:voice:join':
+        case 'lobby:voice:leave':
+        case 'lobby:voice:mute':
+        case 'lobby:voice:offer':
+        case 'lobby:voice:answer':
+        case 'lobby:voice:ice':
             return data;
         default:
             return null;

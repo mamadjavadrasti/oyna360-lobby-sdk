@@ -34,6 +34,8 @@ export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig 
   enableMultiplayer?: boolean;
   /** Default true. Live room chat overlay; messages are not stored. */
   enableChat?: boolean;
+  /** Default true. WebRTC voice chat (friends / all lobby modes). */
+  enableVoice?: boolean;
   /** `auto` picks a tier from device hints; default `auto`. */
   quality?: import('./quality').LobbyQualityLevel | 'auto';
 }

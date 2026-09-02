@@ -5,10 +5,18 @@ import type {
   LobbyMoveMessage,
   LobbyPlayerState,
   LobbyServerMessage,
+  LobbyVoiceMode,
+  LobbyVoicePeerState,
+  RtcIceCandidate,
+  RtcSessionDescription,
 } from './protocol';
 
 export type NetworkClientHandlers = {
-  onWelcome?: (self: LobbyPlayerState, players: LobbyPlayerState[]) => void;
+  onWelcome?: (
+    self: LobbyPlayerState,
+    players: LobbyPlayerState[],
+    meta?: { friendUserIds?: string[]; voicePeers?: LobbyVoicePeerState[] },
+  ) => void;
   onPlayerJoined?: (player: LobbyPlayerState) => void;
   onPlayerLeft?: (payload: { userId: string; username?: string; displayName?: string }) => void;
   onPlayerMoved?: (payload: {
@@ -21,6 +29,13 @@ export type NetworkClientHandlers = {
   }) => void;
   onPlayerEmote?: (userId: string, emote: LobbyEmoteKind) => void;
   onChat?: (payload: { userId: string; username?: string; displayName: string; text: string; at: number }) => void;
+  onVoiceState?: (peers: LobbyVoicePeerState[], friendUserIds: string[]) => void;
+  onVoiceJoined?: (peer: LobbyVoicePeerState) => void;
+  onVoiceLeft?: (userId: string) => void;
+  onVoiceMute?: (userId: string, muted: boolean) => void;
+  onVoiceOffer?: (fromUserId: string, sdp: RtcSessionDescription) => void;
+  onVoiceAnswer?: (fromUserId: string, sdp: RtcSessionDescription) => void;
+  onVoiceIce?: (fromUserId: string, candidate: RtcIceCandidate) => void;
   onError?: (code: string, message: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
@@ -73,7 +88,10 @@ export class NetworkClient {
   private handleServerMessage(msg: LobbyServerMessage) {
     switch (msg.type) {
       case 'lobby:welcome':
-        this.handlers.onWelcome?.(msg.self, msg.players);
+        this.handlers.onWelcome?.(msg.self, msg.players, {
+          friendUserIds: msg.friendUserIds,
+          voicePeers: msg.voicePeers,
+        });
         break;
       case 'lobby:player:joined':
         this.handlers.onPlayerJoined?.(msg.player);
@@ -93,6 +111,27 @@ export class NetworkClient {
         break;
       case 'lobby:chat':
         this.handlers.onChat?.(msg);
+        break;
+      case 'lobby:voice:state':
+        this.handlers.onVoiceState?.(msg.peers, msg.friendUserIds);
+        break;
+      case 'lobby:voice:joined':
+        this.handlers.onVoiceJoined?.(msg.peer);
+        break;
+      case 'lobby:voice:left':
+        this.handlers.onVoiceLeft?.(msg.userId);
+        break;
+      case 'lobby:voice:mute':
+        this.handlers.onVoiceMute?.(msg.userId, msg.muted);
+        break;
+      case 'lobby:voice:offer':
+        this.handlers.onVoiceOffer?.(msg.fromUserId, msg.sdp);
+        break;
+      case 'lobby:voice:answer':
+        this.handlers.onVoiceAnswer?.(msg.fromUserId, msg.sdp);
+        break;
+      case 'lobby:voice:ice':
+        this.handlers.onVoiceIce?.(msg.fromUserId, msg.candidate);
         break;
       case 'lobby:error':
         this.handlers.onError?.(msg.code, msg.message);
@@ -121,6 +160,36 @@ export class NetworkClient {
   sendChat(text: string) {
     if (!this.socket?.connected) return;
     this.socket.emit('message', { type: 'lobby:chat', text } satisfies LobbyClientMessage);
+  }
+
+  sendVoiceJoin(mode: LobbyVoiceMode) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('message', { type: 'lobby:voice:join', mode } satisfies LobbyClientMessage);
+  }
+
+  sendVoiceLeave() {
+    if (!this.socket?.connected) return;
+    this.socket.emit('message', { type: 'lobby:voice:leave' } satisfies LobbyClientMessage);
+  }
+
+  sendVoiceMute(muted: boolean) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('message', { type: 'lobby:voice:mute', muted } satisfies LobbyClientMessage);
+  }
+
+  sendVoiceOffer(toUserId: string, sdp: RtcSessionDescription) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('message', { type: 'lobby:voice:offer', toUserId, sdp } satisfies LobbyClientMessage);
+  }
+
+  sendVoiceAnswer(toUserId: string, sdp: RtcSessionDescription) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('message', { type: 'lobby:voice:answer', toUserId, sdp } satisfies LobbyClientMessage);
+  }
+
+  sendVoiceIce(toUserId: string, candidate: RtcIceCandidate) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('message', { type: 'lobby:voice:ice', toUserId, candidate } satisfies LobbyClientMessage);
   }
 
   ping() {

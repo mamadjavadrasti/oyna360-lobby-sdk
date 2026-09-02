@@ -76,6 +76,52 @@ export interface LobbyChatMessage {
   text: string;
 }
 
+export type LobbyVoiceMode = 'friends' | 'all';
+
+export interface RtcSessionDescription {
+  type?: 'offer' | 'answer' | 'pranswer' | 'rollback';
+  sdp?: string;
+}
+
+export interface RtcIceCandidate {
+  candidate?: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+}
+
+export interface LobbyVoiceJoinMessage {
+  type: 'lobby:voice:join';
+  mode: LobbyVoiceMode;
+}
+
+export interface LobbyVoiceLeaveMessage {
+  type: 'lobby:voice:leave';
+}
+
+export interface LobbyVoiceMuteMessage {
+  type: 'lobby:voice:mute';
+  muted: boolean;
+}
+
+export interface LobbyVoiceOfferMessage {
+  type: 'lobby:voice:offer';
+  toUserId: string;
+  sdp: RtcSessionDescription;
+}
+
+export interface LobbyVoiceAnswerMessage {
+  type: 'lobby:voice:answer';
+  toUserId: string;
+  sdp: RtcSessionDescription;
+}
+
+export interface LobbyVoiceIceMessage {
+  type: 'lobby:voice:ice';
+  toUserId: string;
+  candidate: RtcIceCandidate;
+}
+
 export const LOBBY_CHAT_MAX_LEN = 140;
 
 export function sanitizeLobbyChat(text: unknown): string | null {
@@ -91,7 +137,20 @@ export type LobbyClientMessage =
   | LobbyEmoteMessage
   | LobbyLeaveMessage
   | LobbyPingMessage
-  | LobbyChatMessage;
+  | LobbyChatMessage
+  | LobbyVoiceJoinMessage
+  | LobbyVoiceLeaveMessage
+  | LobbyVoiceMuteMessage
+  | LobbyVoiceOfferMessage
+  | LobbyVoiceAnswerMessage
+  | LobbyVoiceIceMessage;
+
+export interface LobbyVoicePeerState {
+  userId: string;
+  username?: string;
+  mode: LobbyVoiceMode;
+  muted: boolean;
+}
 
 export interface LobbyWelcomeMessage {
   type: 'lobby:welcome';
@@ -99,6 +158,8 @@ export interface LobbyWelcomeMessage {
   self: LobbyPlayerState;
   players: LobbyPlayerState[];
   maxPlayers: number;
+  friendUserIds?: string[];
+  voicePeers?: LobbyVoicePeerState[];
 }
 
 export interface LobbyStateMessage {
@@ -153,6 +214,46 @@ export interface LobbyChatBroadcastMessage {
   at: number;
 }
 
+export interface LobbyVoiceStateMessage {
+  type: 'lobby:voice:state';
+  peers: LobbyVoicePeerState[];
+  friendUserIds: string[];
+}
+
+export interface LobbyVoiceJoinedMessage {
+  type: 'lobby:voice:joined';
+  peer: LobbyVoicePeerState;
+}
+
+export interface LobbyVoiceLeftMessage {
+  type: 'lobby:voice:left';
+  userId: string;
+}
+
+export interface LobbyVoiceMuteBroadcastMessage {
+  type: 'lobby:voice:mute';
+  userId: string;
+  muted: boolean;
+}
+
+export interface LobbyVoiceOfferBroadcastMessage {
+  type: 'lobby:voice:offer';
+  fromUserId: string;
+  sdp: RtcSessionDescription;
+}
+
+export interface LobbyVoiceAnswerBroadcastMessage {
+  type: 'lobby:voice:answer';
+  fromUserId: string;
+  sdp: RtcSessionDescription;
+}
+
+export interface LobbyVoiceIceBroadcastMessage {
+  type: 'lobby:voice:ice';
+  fromUserId: string;
+  candidate: RtcIceCandidate;
+}
+
 export type LobbyServerMessage =
   | LobbyWelcomeMessage
   | LobbyStateMessage
@@ -161,6 +262,13 @@ export type LobbyServerMessage =
   | LobbyPlayerMovedMessage
   | LobbyPlayerEmoteMessage
   | LobbyChatBroadcastMessage
+  | LobbyVoiceStateMessage
+  | LobbyVoiceJoinedMessage
+  | LobbyVoiceLeftMessage
+  | LobbyVoiceMuteBroadcastMessage
+  | LobbyVoiceOfferBroadcastMessage
+  | LobbyVoiceAnswerBroadcastMessage
+  | LobbyVoiceIceBroadcastMessage
   | LobbyErrorMessage
   | LobbyPongMessage;
 
@@ -174,6 +282,12 @@ export function parseLobbyClientMessage(data: unknown): LobbyClientMessage | nul
     case 'lobby:leave':
     case 'lobby:ping':
     case 'lobby:chat':
+    case 'lobby:voice:join':
+    case 'lobby:voice:leave':
+    case 'lobby:voice:mute':
+    case 'lobby:voice:offer':
+    case 'lobby:voice:answer':
+    case 'lobby:voice:ice':
       return data as LobbyClientMessage;
     default:
       return null;

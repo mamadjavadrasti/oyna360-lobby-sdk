@@ -5,6 +5,7 @@ import { LocalPlayerController } from './local-player-controller';
 import type { LobbyPlugin } from './types';
 import { type StarterLayoutConfig } from './starter-layout';
 import { type PlazaLayoutConfig } from './plaza-layout';
+import { LobbyVoiceChat } from './voice-chat';
 import type { LobbyEventMap, LobbyEventName, LobbyPortalOptions, LobbyZoneOptions, PlatformLobbyConfig, PlatformLobbyCreateOptions, PlatformLobbyDevOptions, Vector3 } from './types';
 export declare class PlatformLobby {
     private readonly canvas;
@@ -29,6 +30,8 @@ export declare class PlatformLobby {
     private music;
     private chatDispose;
     private presenceDispose;
+    private voiceDispose;
+    private voiceChat;
     private resizeHandler;
     private constructor();
     static create(options: PlatformLobbyCreateOptions): Promise<PlatformLobby>;
@@ -75,6 +78,8 @@ export declare class PlatformLobby {
     /** Live lobby chat. Not saved. Always echoes locally so the sender sees the line. */
     sendChat(text: string): boolean;
     attachChat(): this;
+    attachVoice(): this;
+    getVoiceChat(): LobbyVoiceChat | null;
     /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
     setMoveStick(x: number, z: number): void;
     setLookStick(x: number, y: number): void;
