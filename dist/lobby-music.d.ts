@@ -21,6 +21,7 @@ export declare class LobbyMusic {
     unlock(autoStartMusic?: boolean): Promise<void>;
     startMusic(): Promise<void>;
     setMuted(muted: boolean): void;
+    /** @returns true when music is muted after the toggle */
     toggleMuted(): boolean;
     isMuted(): boolean;
     playStep(running: boolean): void;

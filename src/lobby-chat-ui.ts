@@ -14,10 +14,13 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
 
   const toggle = document.createElement('button');
   toggle.type = 'button';
-  toggle.textContent = '💬';
   toggle.title = 'چت لابی';
   toggle.setAttribute('aria-label', 'چت لابی');
   toggle.style.cssText = ICON_BTN;
+
+  const icon = document.createElement('span');
+  icon.textContent = '💬';
+  icon.setAttribute('aria-hidden', 'true');
 
   const panel = document.createElement('div');
   panel.style.cssText =
@@ -71,7 +74,7 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
   badge.style.cssText =
     'display:none;position:absolute;top:-4px;left:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font:700 10px/16px Vazirmatn,Tahoma,sans-serif;text-align:center;pointer-events:none';
   toggle.style.position = 'relative';
-  toggle.append(badge);
+  toggle.replaceChildren(icon, badge);
 
   const root = document.createElement('div');
   root.dataset.lobbyChat = '1';
@@ -80,6 +83,12 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
   let unread = 0;
   let toastTimer = 0;
   const isOpen = () => panel.style.display !== 'none';
+
+  const setToggleActive = (active: boolean) => {
+    toggle.style.borderColor = active ? 'rgba(74,222,128,.45)' : 'rgba(255,255,255,.14)';
+    toggle.style.background = active ? 'rgba(20,83,45,.55)' : 'rgba(8,8,20,.55)';
+    icon.textContent = '💬';
+  };
 
   const hideToast = () => {
     toast.style.display = 'none';
@@ -99,6 +108,7 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
 
   const open = () => {
     panel.style.display = 'block';
+    setToggleActive(true);
     hideToast();
     setUnread(0);
     input.focus();
@@ -106,6 +116,7 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
 
   const close = () => {
     panel.style.display = 'none';
+    setToggleActive(false);
   };
 
   const blockScene = (e: Event) => {
@@ -139,6 +150,15 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
     submit();
   });
 
+  const chatAnchor = document.getElementById('oyna-lobby-chat-anchor');
+  const syncAccess = () => {
+    const allowed = lobby.canUseChat();
+    if (chatAnchor) chatAnchor.style.display = allowed ? '' : 'none';
+    else root.style.display = allowed ? '' : 'none';
+  };
+  syncAccess();
+  const offConnected = lobby.on('connected', syncAccess);
+
   const off = lobby.on('chat', ({ userId, displayName, username, text }) => {
     const mine = userId === lobby.getUser().id;
     const line = document.createElement('p');
@@ -163,6 +183,7 @@ export function attachLobbyChatUi(lobby: PlatformLobby, canvas: HTMLCanvasElemen
 
   return () => {
     off();
+    offConnected();
     hideToast();
     toggle.remove();
     root.remove();
@@ -183,6 +204,31 @@ function mountChatChrome(
     'direction:rtl',
     'pointer-events:none',
   ].join(';');
+
+  const toolbar =
+    document.getElementById('oyna-lobby-hud__toolbar') ??
+    document.querySelector('.oyna-lobby-hud__toolbar');
+  const chatAnchor = document.getElementById('oyna-lobby-chat-anchor');
+
+  if (toolbar && chatAnchor) {
+    chatAnchor.replaceChildren(toggle);
+    root.style.cssText = [
+      'position:absolute',
+      'top:calc(100% + 8px)',
+      'left:0',
+      'display:flex',
+      'flex-direction:column',
+      'gap:8px',
+      'align-items:flex-start',
+      shell,
+    ].join(';');
+    const iconRow = document.createElement('div');
+    iconRow.style.cssText = 'display:flex;align-items:center;gap:8px';
+    iconRow.append(toast);
+    root.append(iconRow, panel);
+    toolbar.append(root);
+    return;
+  }
 
   const music =
     document.getElementById('oyna-lobby-music') || document.getElementById('music-btn');
@@ -207,9 +253,10 @@ function mountChatChrome(
   }
 
   if (music?.parentElement) {
+    music.insertAdjacentElement('afterend', toggle);
     root.style.cssText = [
       'position:absolute',
-      `top:${music.offsetTop + music.offsetHeight + 8}px`,
+      `top:calc(${music.offsetTop}px + ${music.offsetHeight}px + 8px)`,
       `left:${music.offsetLeft}px`,
       'display:flex',
       'flex-direction:column',
@@ -219,7 +266,7 @@ function mountChatChrome(
     ].join(';');
     const iconRow = document.createElement('div');
     iconRow.style.cssText = 'display:flex;align-items:center;gap:8px';
-    iconRow.append(toggle, toast);
+    iconRow.append(toast);
     root.append(iconRow, panel);
     music.parentElement.append(root);
     return;

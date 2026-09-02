@@ -33,5 +33,5 @@ export { SLIDE_ANCHOR, TRAMPOLINE_ANCHOR } from './playground/playground-layout'
 export { LOBBY_QUALITY, detectLobbyQuality, isTouchDevice, lobbyQualitySettings, resolveLobbyQuality, } from './quality';
 export type { LobbyQualityLevel, LobbyQualitySettings } from './quality';
 export { LOBBY_PROTOCOL_VERSION, GLOBAL_AVATAR_ROOM_ID, gameRoomId, LOBBY_CHAT_MAX_LEN, sanitizeLobbyChat, } from './protocol';
-export type { LobbyVoiceMode, LobbyVoicePeerState } from './protocol';
+export type { LobbyVoiceMode, LobbyVoicePeerState, LobbyFeatureFlags } from './protocol';
 //# sourceMappingURL=index.d.ts.map

@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import type {
   LobbyClientMessage,
   LobbyEmoteKind,
+  LobbyFeatureFlags,
   LobbyMoveMessage,
   LobbyPlayerState,
   LobbyServerMessage,
@@ -15,7 +16,7 @@ export type NetworkClientHandlers = {
   onWelcome?: (
     self: LobbyPlayerState,
     players: LobbyPlayerState[],
-    meta?: { friendUserIds?: string[]; voicePeers?: LobbyVoicePeerState[] },
+    meta?: { friendUserIds?: string[]; voicePeers?: LobbyVoicePeerState[]; lobbyFeatures?: LobbyFeatureFlags },
   ) => void;
   onPlayerJoined?: (player: LobbyPlayerState) => void;
   onPlayerLeft?: (payload: { userId: string; username?: string; displayName?: string }) => void;
@@ -91,6 +92,7 @@ export class NetworkClient {
         this.handlers.onWelcome?.(msg.self, msg.players, {
           friendUserIds: msg.friendUserIds,
           voicePeers: msg.voicePeers,
+          lobbyFeatures: msg.lobbyFeatures,
         });
         break;
       case 'lobby:player:joined':

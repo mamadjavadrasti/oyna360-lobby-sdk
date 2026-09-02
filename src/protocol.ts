@@ -152,6 +152,13 @@ export interface LobbyVoicePeerState {
   muted: boolean;
 }
 
+export interface LobbyFeatureFlags {
+  chatEnabled: boolean;
+  voiceEnabled: boolean;
+  chatAllowed: boolean;
+  voiceAllowed: boolean;
+}
+
 export interface LobbyWelcomeMessage {
   type: 'lobby:welcome';
   roomId: string;
@@ -160,6 +167,7 @@ export interface LobbyWelcomeMessage {
   maxPlayers: number;
   friendUserIds?: string[];
   voicePeers?: LobbyVoicePeerState[];
+  lobbyFeatures?: LobbyFeatureFlags;
 }
 
 export interface LobbyStateMessage {

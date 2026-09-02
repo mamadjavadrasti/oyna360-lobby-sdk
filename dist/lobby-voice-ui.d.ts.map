@@ -1,1 +1,1 @@
-{"version":3,"file":"lobby-voice-ui.d.ts","sourceRoot":"","sources":["../src/lobby-voice-ui.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,kBAAkB,CAAC;AAOtD,wBAAgB,kBAAkB,CAAC,KAAK,EAAE,aAAa,GAAG,MAAM,IAAI,CAuFnE"}
+{"version":3,"file":"lobby-voice-ui.d.ts","sourceRoot":"","sources":["../src/lobby-voice-ui.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,kBAAkB,CAAC;AAmBtD,wBAAgB,kBAAkB,CAAC,KAAK,EAAE,aAAa,GAAG,MAAM,IAAI,CAyFnE"}

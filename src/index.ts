@@ -69,4 +69,4 @@ export {
   LOBBY_CHAT_MAX_LEN,
   sanitizeLobbyChat,
 } from './protocol';
-export type { LobbyVoiceMode, LobbyVoicePeerState } from './protocol';
+export type { LobbyVoiceMode, LobbyVoicePeerState, LobbyFeatureFlags } from './protocol';

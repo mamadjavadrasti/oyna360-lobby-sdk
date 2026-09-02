@@ -1,8 +1,9 @@
-import type { LobbyEmoteKind, LobbyMoveMessage, LobbyPlayerState, LobbyVoiceMode, LobbyVoicePeerState, RtcIceCandidate, RtcSessionDescription } from './protocol';
+import type { LobbyEmoteKind, LobbyFeatureFlags, LobbyMoveMessage, LobbyPlayerState, LobbyVoiceMode, LobbyVoicePeerState, RtcIceCandidate, RtcSessionDescription } from './protocol';
 export type NetworkClientHandlers = {
     onWelcome?: (self: LobbyPlayerState, players: LobbyPlayerState[], meta?: {
         friendUserIds?: string[];
         voicePeers?: LobbyVoicePeerState[];
+        lobbyFeatures?: LobbyFeatureFlags;
     }) => void;
     onPlayerJoined?: (player: LobbyPlayerState) => void;
     onPlayerLeft?: (payload: {

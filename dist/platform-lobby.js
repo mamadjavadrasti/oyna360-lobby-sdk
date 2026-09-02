@@ -20,6 +20,12 @@ import { attachLobbyVoiceUi } from './lobby-voice-ui';
 import { ensureLobbyPersianFont } from './lobby-font';
 import { provisionalSpawnSlot, resolveSpawnPose } from './spawn-utils';
 import { LobbyVoiceChat } from './voice-chat';
+const DEFAULT_LOBBY_FEATURES = {
+    chatEnabled: true,
+    voiceEnabled: true,
+    chatAllowed: true,
+    voiceAllowed: true,
+};
 export class PlatformLobby {
     canvas;
     init;
@@ -45,6 +51,7 @@ export class PlatformLobby {
     presenceDispose = null;
     voiceDispose = null;
     voiceChat = null;
+    lobbyFeatures = { ...DEFAULT_LOBBY_FEATURES };
     resizeHandler = () => this.sceneManager?.resize();
     constructor(init, canvas, roomId, wsUrl, config = {}) {
         this.canvas = canvas;
@@ -161,6 +168,8 @@ export class PlatformLobby {
         this.network = new NetworkClient(this.wsUrl, this.roomId, this.init.session.token, {
             onWelcome: (self, players, meta) => {
                 this.localController.teleportTo(self.position, self.rotationY);
+                if (meta?.lobbyFeatures)
+                    this.lobbyFeatures = meta.lobbyFeatures;
                 this.voiceChat?.setContext(this.init.user.id, meta?.friendUserIds ?? []);
                 if (meta?.voicePeers) {
                     this.voiceChat?.handleVoiceState(meta.voicePeers, meta?.friendUserIds ?? []);
@@ -322,6 +331,8 @@ export class PlatformLobby {
     }
     /** Live lobby chat. Not saved. Always echoes locally so the sender sees the line. */
     sendChat(text) {
+        if (!this.canUseChat())
+            return false;
         const clean = sanitizeLobbyChat(text);
         if (!clean)
             return false;
@@ -349,6 +360,15 @@ export class PlatformLobby {
     }
     getVoiceChat() {
         return this.voiceChat;
+    }
+    getLobbyFeatures() {
+        return this.lobbyFeatures;
+    }
+    canUseChat() {
+        return this.lobbyFeatures.chatEnabled && this.lobbyFeatures.chatAllowed;
+    }
+    canUseVoice() {
+        return this.lobbyFeatures.voiceEnabled && this.lobbyFeatures.voiceAllowed;
     }
     /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
     setMoveStick(x, z) {

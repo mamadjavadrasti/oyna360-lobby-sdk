@@ -7,6 +7,7 @@ import { type StarterLayoutConfig } from './starter-layout';
 import { type PlazaLayoutConfig } from './plaza-layout';
 import { LobbyVoiceChat } from './voice-chat';
 import type { LobbyEventMap, LobbyEventName, LobbyPortalOptions, LobbyZoneOptions, PlatformLobbyConfig, PlatformLobbyCreateOptions, PlatformLobbyDevOptions, Vector3 } from './types';
+import type { LobbyFeatureFlags } from './protocol';
 export declare class PlatformLobby {
     private readonly canvas;
     private readonly init;
@@ -32,6 +33,7 @@ export declare class PlatformLobby {
     private presenceDispose;
     private voiceDispose;
     private voiceChat;
+    private lobbyFeatures;
     private resizeHandler;
     private constructor();
     static create(options: PlatformLobbyCreateOptions): Promise<PlatformLobby>;
@@ -80,6 +82,9 @@ export declare class PlatformLobby {
     attachChat(): this;
     attachVoice(): this;
     getVoiceChat(): LobbyVoiceChat | null;
+    getLobbyFeatures(): LobbyFeatureFlags;
+    canUseChat(): boolean;
+    canUseVoice(): boolean;
     /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
     setMoveStick(x: number, z: number): void;
     setLookStick(x: number, y: number): void;

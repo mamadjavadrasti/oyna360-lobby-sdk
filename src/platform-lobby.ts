@@ -32,6 +32,14 @@ import type {
   PlatformLobbyDevOptions,
   Vector3,
 } from './types';
+import type { LobbyFeatureFlags } from './protocol';
+
+const DEFAULT_LOBBY_FEATURES: LobbyFeatureFlags = {
+  chatEnabled: true,
+  voiceEnabled: true,
+  chatAllowed: true,
+  voiceAllowed: true,
+};
 
 export class PlatformLobby {
   private readonly init: SdkInitPayload;
@@ -57,6 +65,7 @@ export class PlatformLobby {
   private presenceDispose: (() => void) | null = null;
   private voiceDispose: (() => void) | null = null;
   private voiceChat: LobbyVoiceChat | null = null;
+  private lobbyFeatures: LobbyFeatureFlags = { ...DEFAULT_LOBBY_FEATURES };
   private resizeHandler = () => this.sceneManager?.resize();
 
   private constructor(
@@ -219,6 +228,7 @@ export class PlatformLobby {
       {
         onWelcome: (self, players, meta) => {
           this.localController.teleportTo(self.position, self.rotationY);
+          if (meta?.lobbyFeatures) this.lobbyFeatures = meta.lobbyFeatures;
           this.voiceChat?.setContext(this.init.user.id, meta?.friendUserIds ?? []);
           if (meta?.voicePeers) {
             this.voiceChat?.handleVoiceState(meta.voicePeers, meta?.friendUserIds ?? []);
@@ -394,6 +404,7 @@ export class PlatformLobby {
 
   /** Live lobby chat. Not saved. Always echoes locally so the sender sees the line. */
   sendChat(text: string) {
+    if (!this.canUseChat()) return false;
     const clean = sanitizeLobbyChat(text);
     if (!clean) return false;
     this.emit('chat', {
@@ -421,6 +432,18 @@ export class PlatformLobby {
 
   getVoiceChat() {
     return this.voiceChat;
+  }
+
+  getLobbyFeatures() {
+    return this.lobbyFeatures;
+  }
+
+  canUseChat() {
+    return this.lobbyFeatures.chatEnabled && this.lobbyFeatures.chatAllowed;
+  }
+
+  canUseVoice() {
+    return this.lobbyFeatures.voiceEnabled && this.lobbyFeatures.voiceAllowed;
   }
 
   /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */

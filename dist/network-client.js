@@ -45,6 +45,7 @@ export class NetworkClient {
                 this.handlers.onWelcome?.(msg.self, msg.players, {
                     friendUserIds: msg.friendUserIds,
                     voicePeers: msg.voicePeers,
+                    lobbyFeatures: msg.lobbyFeatures,
                 });
                 break;
             case 'lobby:player:joined':

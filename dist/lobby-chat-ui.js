@@ -7,10 +7,12 @@ export function attachLobbyChatUi(lobby, canvas) {
     void ensureLobbyPersianFont();
     const toggle = document.createElement('button');
     toggle.type = 'button';
-    toggle.textContent = '💬';
     toggle.title = 'چت لابی';
     toggle.setAttribute('aria-label', 'چت لابی');
     toggle.style.cssText = ICON_BTN;
+    const icon = document.createElement('span');
+    icon.textContent = '💬';
+    icon.setAttribute('aria-hidden', 'true');
     const panel = document.createElement('div');
     panel.style.cssText =
         `display:none;pointer-events:auto;width:260px;background:rgba(8,8,20,.78);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:8px;font:13px/1.5 ${LOBBY_UI_FONT};color:#fff;direction:rtl`;
@@ -56,13 +58,18 @@ export function attachLobbyChatUi(lobby, canvas) {
     badge.style.cssText =
         'display:none;position:absolute;top:-4px;left:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font:700 10px/16px Vazirmatn,Tahoma,sans-serif;text-align:center;pointer-events:none';
     toggle.style.position = 'relative';
-    toggle.append(badge);
+    toggle.replaceChildren(icon, badge);
     const root = document.createElement('div');
     root.dataset.lobbyChat = '1';
     mountChatChrome(root, toggle, panel, toast, canvas);
     let unread = 0;
     let toastTimer = 0;
     const isOpen = () => panel.style.display !== 'none';
+    const setToggleActive = (active) => {
+        toggle.style.borderColor = active ? 'rgba(74,222,128,.45)' : 'rgba(255,255,255,.14)';
+        toggle.style.background = active ? 'rgba(20,83,45,.55)' : 'rgba(8,8,20,.55)';
+        icon.textContent = '💬';
+    };
     const hideToast = () => {
         toast.style.display = 'none';
         if (toastTimer)
@@ -80,12 +87,14 @@ export function attachLobbyChatUi(lobby, canvas) {
     };
     const open = () => {
         panel.style.display = 'block';
+        setToggleActive(true);
         hideToast();
         setUnread(0);
         input.focus();
     };
     const close = () => {
         panel.style.display = 'none';
+        setToggleActive(false);
     };
     const blockScene = (e) => {
         e.stopPropagation();
@@ -117,6 +126,16 @@ export function attachLobbyChatUi(lobby, canvas) {
         e.stopPropagation();
         submit();
     });
+    const chatAnchor = document.getElementById('oyna-lobby-chat-anchor');
+    const syncAccess = () => {
+        const allowed = lobby.canUseChat();
+        if (chatAnchor)
+            chatAnchor.style.display = allowed ? '' : 'none';
+        else
+            root.style.display = allowed ? '' : 'none';
+    };
+    syncAccess();
+    const offConnected = lobby.on('connected', syncAccess);
     const off = lobby.on('chat', ({ userId, displayName, username, text }) => {
         const mine = userId === lobby.getUser().id;
         const line = document.createElement('p');
@@ -144,6 +163,7 @@ export function attachLobbyChatUi(lobby, canvas) {
     });
     return () => {
         off();
+        offConnected();
         hideToast();
         toggle.remove();
         root.remove();
@@ -157,6 +177,28 @@ function mountChatChrome(root, toggle, panel, toast, canvas) {
         'direction:rtl',
         'pointer-events:none',
     ].join(';');
+    const toolbar = document.getElementById('oyna-lobby-hud__toolbar') ??
+        document.querySelector('.oyna-lobby-hud__toolbar');
+    const chatAnchor = document.getElementById('oyna-lobby-chat-anchor');
+    if (toolbar && chatAnchor) {
+        chatAnchor.replaceChildren(toggle);
+        root.style.cssText = [
+            'position:absolute',
+            'top:calc(100% + 8px)',
+            'left:0',
+            'display:flex',
+            'flex-direction:column',
+            'gap:8px',
+            'align-items:flex-start',
+            shell,
+        ].join(';');
+        const iconRow = document.createElement('div');
+        iconRow.style.cssText = 'display:flex;align-items:center;gap:8px';
+        iconRow.append(toast);
+        root.append(iconRow, panel);
+        toolbar.append(root);
+        return;
+    }
     const music = document.getElementById('oyna-lobby-music') || document.getElementById('music-btn');
     const dummyChat = document.querySelector('.icon-col button[title="گفتگو"]');
     dummyChat?.remove();
@@ -175,9 +217,10 @@ function mountChatChrome(root, toggle, panel, toast, canvas) {
         return;
     }
     if (music?.parentElement) {
+        music.insertAdjacentElement('afterend', toggle);
         root.style.cssText = [
             'position:absolute',
-            `top:${music.offsetTop + music.offsetHeight + 8}px`,
+            `top:calc(${music.offsetTop}px + ${music.offsetHeight}px + 8px)`,
             `left:${music.offsetLeft}px`,
             'display:flex',
             'flex-direction:column',
@@ -187,7 +230,7 @@ function mountChatChrome(root, toggle, panel, toast, canvas) {
         ].join(';');
         const iconRow = document.createElement('div');
         iconRow.style.cssText = 'display:flex;align-items:center;gap:8px';
-        iconRow.append(toggle, toast);
+        iconRow.append(toast);
         root.append(iconRow, panel);
         music.parentElement.append(root);
         return;

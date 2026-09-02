@@ -40,9 +40,9 @@ export class LobbyMusic {
         }
     }
     async startMusic() {
-        await this.ensureContext();
         this.muted = false;
         this.applyMusicGain();
+        await this.ensureContext();
         if (this.musicStarted)
             return;
         this.musicStarted = true;
@@ -52,9 +52,11 @@ export class LobbyMusic {
         this.muted = muted;
         this.applyMusicGain();
     }
+    /** @returns true when music is muted after the toggle */
     toggleMuted() {
-        void this.ensureContext();
         if (!this.musicStarted || this.muted) {
+            this.muted = false;
+            this.applyMusicGain();
             void this.startMusic();
             return false;
         }
