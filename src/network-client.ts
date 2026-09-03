@@ -40,6 +40,8 @@ export type NetworkClientHandlers = {
   onError?: (code: string, message: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
+  onReconnecting?: (attempt: number) => void;
+  onReconnectFailed?: () => void;
 };
 
 export class NetworkClient {
@@ -81,8 +83,13 @@ export class NetworkClient {
 
     this.socket.on('message', (msg: LobbyServerMessage) => this.handleServerMessage(msg));
 
-    this.socket.io.on('reconnect_attempt', () => {
-      this.reconnectAttempts += 1;
+    this.socket.io.on('reconnect_attempt', (attempt) => {
+      this.reconnectAttempts = attempt;
+      this.handlers.onReconnecting?.(attempt);
+    });
+
+    this.socket.io.on('reconnect_failed', () => {
+      this.handlers.onReconnectFailed?.();
     });
   }
 

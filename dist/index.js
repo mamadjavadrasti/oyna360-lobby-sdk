@@ -19,6 +19,8 @@ export { LobbyMusic } from './lobby-music';
 export { attachLobbyChatUi } from './lobby-chat-ui';
 export { attachLobbyPresenceUi } from './lobby-presence-ui';
 export { attachLobbyVoiceUi } from './lobby-voice-ui';
+export { attachLobbyConnectionUi } from './lobby-connection-ui';
+export { attachLobbyOrientationUi } from './lobby-orientation-ui';
 export { LobbyVoiceChat } from './voice-chat';
 export { formatPlayerLabel, formatPlayerLabelParts, formatPlayerHandle, formatAvatarTagLabel } from './player-label';
 export { DEFAULT_LOBBY_SPAWN, lobbySpawnPose, provisionalSpawnSlot, resolveSpawnPose, spawnLayoutFromConfig, } from './spawn-utils';

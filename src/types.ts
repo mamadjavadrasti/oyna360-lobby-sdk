@@ -98,6 +98,8 @@ export type LobbyEventMap = {
   portalTrigger: { portalId: string; toGameSlug?: string; toScene?: string };
   connected: void;
   disconnected: void;
+  reconnecting: { attempt: number };
+  reconnectFailed: void;
   error: { message: string; code?: string };
   /** Live room chat. Not stored. */
   chat: { userId: string; username?: string; displayName: string; text: string; at: number };

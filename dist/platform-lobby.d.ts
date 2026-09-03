@@ -32,6 +32,8 @@ export declare class PlatformLobby {
     private chatDispose;
     private presenceDispose;
     private voiceDispose;
+    private connectionDispose;
+    private orientationDispose;
     private voiceChat;
     private lobbyFeatures;
     private resizeHandler;

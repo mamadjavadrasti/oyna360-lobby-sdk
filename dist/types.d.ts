@@ -104,6 +104,10 @@ export type LobbyEventMap = {
     };
     connected: void;
     disconnected: void;
+    reconnecting: {
+        attempt: number;
+    };
+    reconnectFailed: void;
     error: {
         message: string;
         code?: string;

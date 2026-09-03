@@ -37,6 +37,8 @@ export type NetworkClientHandlers = {
     onError?: (code: string, message: string) => void;
     onConnected?: () => void;
     onDisconnected?: () => void;
+    onReconnecting?: (attempt: number) => void;
+    onReconnectFailed?: () => void;
 };
 export declare class NetworkClient {
     private readonly wsUrl;

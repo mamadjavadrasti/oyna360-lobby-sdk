@@ -17,6 +17,8 @@ import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
 import { attachLobbyPresenceUi } from './lobby-presence-ui';
 import { attachLobbyVoiceUi } from './lobby-voice-ui';
+import { attachLobbyConnectionUi } from './lobby-connection-ui';
+import { attachLobbyOrientationUi } from './lobby-orientation-ui';
 import { ensureLobbyPersianFont } from './lobby-font';
 import { provisionalSpawnSlot, resolveSpawnPose } from './spawn-utils';
 import { LobbyVoiceChat } from './voice-chat';
@@ -50,6 +52,8 @@ export class PlatformLobby {
     chatDispose = null;
     presenceDispose = null;
     voiceDispose = null;
+    connectionDispose = null;
+    orientationDispose = null;
     voiceChat = null;
     lobbyFeatures = { ...DEFAULT_LOBBY_FEATURES };
     resizeHandler = () => this.sceneManager?.resize();
@@ -151,6 +155,10 @@ export class PlatformLobby {
         if (this.config.enableVoice !== false && this.config.enableMultiplayer !== false) {
             this.attachVoice();
         }
+        if (this.config.enableMultiplayer !== false) {
+            this.connectionDispose = attachLobbyConnectionUi(this);
+        }
+        this.orientationDispose = attachLobbyOrientationUi();
         for (const plugin of this.plugins) {
             void plugin.setup(this);
         }
@@ -232,6 +240,12 @@ export class PlatformLobby {
             },
             onDisconnected: () => {
                 this.emit('disconnected', undefined);
+            },
+            onReconnecting: (attempt) => {
+                this.emit('reconnecting', { attempt });
+            },
+            onReconnectFailed: () => {
+                this.emit('reconnectFailed', undefined);
             },
         });
         this.network.connect();
@@ -445,6 +459,10 @@ export class PlatformLobby {
         this.presenceDispose = null;
         this.voiceDispose?.();
         this.voiceDispose = null;
+        this.connectionDispose?.();
+        this.connectionDispose = null;
+        this.orientationDispose?.();
+        this.orientationDispose = null;
         this.voiceChat?.dispose();
         this.voiceChat = null;
         this.network?.disconnect();

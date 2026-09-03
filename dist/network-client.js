@@ -35,8 +35,12 @@ export class NetworkClient {
             this.handlers.onDisconnected?.();
         });
         this.socket.on('message', (msg) => this.handleServerMessage(msg));
-        this.socket.io.on('reconnect_attempt', () => {
-            this.reconnectAttempts += 1;
+        this.socket.io.on('reconnect_attempt', (attempt) => {
+            this.reconnectAttempts = attempt;
+            this.handlers.onReconnecting?.(attempt);
+        });
+        this.socket.io.on('reconnect_failed', () => {
+            this.handlers.onReconnectFailed?.();
         });
     }
     handleServerMessage(msg) {
