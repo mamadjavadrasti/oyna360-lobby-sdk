@@ -32,26 +32,24 @@ function resolveGlbUrl(avatar) {
     const url = config.glbUrl;
     return typeof url === 'string' && url.trim() ? url.trim() : null;
 }
-function fitGlbToHumanHeight(visual, meshes, targetHeight = 1.85) {
-    const roots = meshes.filter((m) => !m.parent || meshes.includes(m.parent));
-    const sample = roots[0] ?? meshes[0];
-    if (!sample)
+function fitGlbToHumanHeight(model, meshes, targetHeight = 1.85) {
+    if (!meshes.length)
         return;
-    // Force world matrix update after parenting
-    visual.computeWorldMatrix(true);
+    model.computeWorldMatrix(true);
     for (const m of meshes)
         m.computeWorldMatrix(true);
-    const { min, max } = visual.getHierarchyBoundingVectors(true);
+    const { min, max } = model.getHierarchyBoundingVectors(true);
     const height = max.y - min.y;
     if (!(height > 0.01))
         return;
     const scale = targetHeight / height;
-    visual.scaling.setAll(scale);
-    visual.computeWorldMatrix(true);
+    model.scaling.setAll(scale);
+    model.computeWorldMatrix(true);
     for (const m of meshes)
         m.computeWorldMatrix(true);
-    const fitted = visual.getHierarchyBoundingVectors(true);
-    visual.position.y -= fitted.min.y;
+    // Keep feet on y=0 of the parent visual (animator may reset visual.y).
+    const fitted = model.getHierarchyBoundingVectors(true);
+    model.position.y -= fitted.min.y;
 }
 function simplifyGlbMaterials(meshes, scene) {
     for (const mesh of meshes) {
@@ -199,20 +197,24 @@ export class AvatarFactory {
     }
     static async createFromGlb(scene, glbUrl, name, displayName, username, options) {
         const visual = new TransformNode(`${name}-visual`, scene);
+        // Separate model node so HumanoidAnimator can freely set visual.position.y
+        // without undoing the "feet on ground" offset.
+        const model = new TransformNode(`${name}-model`, scene);
+        model.parent = visual;
         const slash = glbUrl.lastIndexOf('/');
         const rootUrl = slash >= 0 ? glbUrl.slice(0, slash + 1) : '';
         const fileName = slash >= 0 ? glbUrl.slice(slash + 1) : glbUrl;
         const result = await SceneLoader.ImportMeshAsync('', rootUrl, fileName, scene);
         const importedRoot = result.meshes[0];
         if (importedRoot) {
-            importedRoot.parent = visual;
+            importedRoot.parent = model;
             importedRoot.position.set(0, 0, 0);
         }
         for (const mesh of result.meshes) {
             mesh.isPickable = false;
             mesh.checkCollisions = false;
         }
-        fitGlbToHumanHeight(visual, result.meshes);
+        fitGlbToHumanHeight(model, result.meshes);
         simplifyGlbMaterials(result.meshes, scene);
         const torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
         const head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);
@@ -235,8 +237,7 @@ export class AvatarFactory {
             collider.ellipsoid = new BVector3(0.42, 1.05, 0.42);
             collider.ellipsoidOffset = new BVector3(0, 1.05, 0);
             visual.parent = collider;
-            visual.position.x = 0;
-            visual.position.z = 0;
+            visual.position.set(0, 0, 0);
             root = collider;
         }
         else if (options.collider === 'body') {
@@ -245,14 +246,13 @@ export class AvatarFactory {
             collider.isPickable = false;
             collider.checkCollisions = false;
             visual.parent = collider;
-            visual.position.x = 0;
-            visual.position.z = 0;
+            visual.position.set(0, 0, 0);
             root = collider;
         }
         root.name = name;
         const groups = (result.animationGroups ?? []);
         const rig = { root, visual, collider, torso, head, armL, armR, legL, legR };
-        root.metadata = { ...(root.metadata ?? {}), rig, animationGroups: groups };
+        root.metadata = { ...(root.metadata ?? {}), rig, animationGroups: groups, glbModel: model };
         return root;
     }
     static getRig(root) {
