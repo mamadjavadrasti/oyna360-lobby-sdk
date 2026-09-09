@@ -1,4 +1,4 @@
-import { Color3, MeshBuilder, SceneLoader, StandardMaterial, TransformNode, Vector3 as BVector3, } from '@babylonjs/core';
+import { Color3, Mesh, MeshBuilder, SceneLoader, StandardMaterial, TransformNode, Vector3 as BVector3, VertexBuffer, VertexData, } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { attachNameTag } from './name-tag';
 const PRESET_LOOKS = {
@@ -36,20 +36,100 @@ function fitGlbToHumanHeight(model, meshes, targetHeight = 1.85) {
     if (!meshes.length)
         return;
     model.computeWorldMatrix(true);
-    for (const m of meshes)
+    for (const m of meshes) {
         m.computeWorldMatrix(true);
-    const { min, max } = model.getHierarchyBoundingVectors(true);
-    const height = max.y - min.y;
-    if (!(height > 0.01))
+        try {
+            m.refreshBoundingInfo?.(true, true);
+        }
+        catch {
+            // ignore
+        }
+    }
+    let { min, max } = model.getHierarchyBoundingVectors(true);
+    let height = max.y - min.y;
+    // Skinned / broken bounds can be astronomical — fall back to local vertex AABB.
+    if (!(height > 0.01) || height > 20) {
+        let minY = Infinity;
+        let maxY = -Infinity;
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minZ = Infinity;
+        let maxZ = -Infinity;
+        for (const m of meshes) {
+            if (!(m instanceof Mesh))
+                continue;
+            const pos = m.getVerticesData(VertexBuffer.PositionKind);
+            if (!pos)
+                continue;
+            for (let i = 0; i < pos.length; i += 3) {
+                minX = Math.min(minX, pos[i]);
+                maxX = Math.max(maxX, pos[i]);
+                minY = Math.min(minY, pos[i + 1]);
+                maxY = Math.max(maxY, pos[i + 1]);
+                minZ = Math.min(minZ, pos[i + 2]);
+                maxZ = Math.max(maxZ, pos[i + 2]);
+            }
+        }
+        height = maxY - minY;
+        if (!(height > 0.01))
+            return;
+        const scale = targetHeight / height;
+        model.scaling.setAll(scale);
+        model.position.y = -minY * scale;
         return;
+    }
     const scale = targetHeight / height;
     model.scaling.setAll(scale);
     model.computeWorldMatrix(true);
     for (const m of meshes)
         m.computeWorldMatrix(true);
-    // Keep feet on y=0 of the parent visual (animator may reset visual.y).
     const fitted = model.getHierarchyBoundingVectors(true);
     model.position.y -= fitted.min.y;
+}
+/**
+ * Copy bind-pose geometry into a new non-skinned mesh.
+ * Needed when Tripo/etc skeletons collapse in Babylon and GPU skinning explodes or hides the mesh.
+ */
+function bakeRigidFromImport(scene, sourceMeshes, parent, name) {
+    const baked = [];
+    for (const src of sourceMeshes) {
+        if (!(src instanceof Mesh))
+            continue;
+        const positions = src.getVerticesData(VertexBuffer.PositionKind);
+        if (!positions || positions.length < 9)
+            continue;
+        const indices = src.getIndices();
+        if (!indices || indices.length < 3)
+            continue;
+        const mesh = new Mesh(`${name}-${src.name || 'geo'}-rigid`, scene);
+        const vd = new VertexData();
+        vd.positions = Array.from(positions);
+        vd.indices = Array.from(indices);
+        const normals = src.getVerticesData(VertexBuffer.NormalKind);
+        if (normals && normals.length === positions.length) {
+            vd.normals = Array.from(normals);
+        }
+        else {
+            const nrm = [];
+            VertexData.ComputeNormals(vd.positions, vd.indices, nrm);
+            vd.normals = nrm;
+        }
+        const uvs = src.getVerticesData(VertexBuffer.UVKind);
+        if (uvs)
+            vd.uvs = Array.from(uvs);
+        vd.applyToMesh(mesh);
+        mesh.material = src.material;
+        mesh.parent = parent;
+        mesh.isPickable = false;
+        mesh.checkCollisions = false;
+        mesh.receiveShadows = false;
+        baked.push(mesh);
+        src.setEnabled(false);
+        src.isVisible = false;
+        src.skeleton = null;
+        src.numBoneInfluencers = 0;
+    }
+    return baked;
 }
 function simplifyGlbMaterials(meshes, scene) {
     for (const mesh of meshes) {
@@ -273,38 +353,56 @@ export class AvatarFactory {
         const result = await SceneLoader.ImportMeshAsync('', rootUrl, fileName, scene);
         const transformNodes = (result.transformNodes ?? []);
         const skeletons = (result.skeletons ?? []);
-        // Parent ONLY the import root — never reparent individual bones (that explodes skinned meshes).
         const importRoot = result.meshes.find((m) => m.name === '__root__' || m.name === 'world') ??
             transformNodes.find((t) => t.name === '__root__' || t.name === 'world') ??
             result.meshes[0];
-        if (importRoot) {
-            importRoot.parent = model;
-        }
-        let strippedSkin = false;
-        for (const mesh of result.meshes) {
-            mesh.isPickable = false;
-            mesh.checkCollisions = false;
-            // This Tripo rig loads with all bones at the origin in Babylon, so GPU skinning
-            // explodes the mesh. Geometry itself is fine — show bind-pose as a rigid mesh.
-            if (mesh.skeleton) {
-                mesh.skeleton = null;
-                mesh.numBoneInfluencers = 0;
-                strippedSkin = true;
+        // Preserve glTF right-handed flip if present on import root.
+        const rootScaleZ = importRoot?.scaling?.z ?? 1;
+        const hasSkeleton = skeletons.length > 0 || result.meshes.some((m) => !!m.skeleton);
+        let displayMeshes = result.meshes;
+        if (hasSkeleton) {
+            // Broken Tripo skin → bake bind-pose into rigid meshes under `model`.
+            const baked = bakeRigidFromImport(scene, result.meshes, model, name);
+            if (baked.length) {
+                displayMeshes = baked;
+                if (rootScaleZ < 0) {
+                    model.scaling.z = -Math.abs(model.scaling.z || 1);
+                }
+                if (importRoot) {
+                    importRoot.setEnabled(false);
+                    importRoot.isVisible = false;
+                }
+                for (const sk of skeletons) {
+                    try {
+                        sk.dispose?.();
+                    }
+                    catch {
+                        // ignore
+                    }
+                }
+                console.warn('[lobby-sdk] GLB skin baked to rigid mesh (skeleton unusable in Babylon)', {
+                    glbUrl,
+                    skeletons: skeletons.length,
+                    baked: baked.length,
+                });
+            }
+            else if (importRoot) {
+                importRoot.parent = model;
             }
         }
-        if (strippedSkin || skeletons.length) {
-            console.warn('[lobby-sdk] GLB skeleton disabled (broken bind pose in Babylon); showing rigid mesh', {
-                glbUrl,
-                skeletons: skeletons.length,
-                bones: skeletons[0]?.bones.length ?? 0,
-            });
+        else if (importRoot) {
+            importRoot.parent = model;
         }
-        fitGlbToHumanHeight(model, result.meshes);
-        simplifyGlbMaterials(result.meshes, scene);
-        console.info('[lobby-sdk] GLB loaded (rigid bind pose)', {
+        for (const mesh of displayMeshes) {
+            mesh.isPickable = false;
+            mesh.checkCollisions = false;
+        }
+        fitGlbToHumanHeight(model, displayMeshes);
+        simplifyGlbMaterials(displayMeshes, scene);
+        console.info('[lobby-sdk] GLB loaded', {
             glbUrl,
-            strippedSkin,
-            meshes: result.meshes.map((m) => m.name),
+            hasSkeleton,
+            display: displayMeshes.map((m) => m.name),
         });
         const torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
         const head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);
