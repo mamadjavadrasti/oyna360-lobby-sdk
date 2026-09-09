@@ -11,6 +11,23 @@ const CLIP_MAP: Record<LobbyAnimationState, string[]> = {
   fall: ['fall', 'Fall', 'falling'],
 };
 
+function applyLimbRotation(
+  rig: AvatarRig,
+  limb: 'torso' | 'head' | 'armL' | 'armR' | 'legL' | 'legR',
+  dx: number,
+  dy = 0,
+  dz = 0,
+) {
+  const node = rig[limb];
+  const rest = rig.restRotation?.[limb];
+  if (rig.boneDriven && rest) {
+    node.rotationQuaternion = null;
+    node.rotation.set(rest.x + dx, rest.y + dy, rest.z + dz);
+    return;
+  }
+  node.rotation.set(dx, dy, dz);
+}
+
 export class HumanoidAnimator {
   private time = 0;
   private weight = 0;
@@ -39,8 +56,8 @@ export class HumanoidAnimator {
     }
     if (!rig) return;
 
-    // Unskinned rigid GLB: no limb meshes to pose — keep visual stable (no fake arm/leg swing).
-    if (this.root.metadata?.rigidGlb) {
+    // Unskinned rigid GLB: no limb bones — keep visual stable.
+    if (this.root.metadata?.rigidGlb && !rig.boneDriven) {
       rig.visual.position.y = 0;
       return;
     }
@@ -87,7 +104,7 @@ export class HumanoidAnimator {
       }
       return false;
     }
-    if (this.root.metadata?.rigidGlb) {
+    if (this.root.metadata?.rigidGlb && !AvatarFactory.getRig(this.root)?.boneDriven) {
       this.clipStepAcc += dt;
       const interval = state === 'run' ? 0.28 : 0.42;
       if (this.clipStepAcc >= interval) {
@@ -119,13 +136,15 @@ export class HumanoidAnimator {
 
   private poseIdle(rig: AvatarRig) {
     const breathe = Math.sin(this.time * 2.1) * 0.015;
-    rig.torso.rotation.x = breathe * 0.4;
-    rig.torso.position.y = 1.18 + breathe;
-    rig.head.rotation.x = breathe * 0.2;
-    rig.armL.rotation.set(0.08, 0, 0.06);
-    rig.armR.rotation.set(0.08, 0, -0.06);
-    rig.legL.rotation.set(0, 0, 0.02);
-    rig.legR.rotation.set(0, 0, -0.02);
+    applyLimbRotation(rig, 'torso', breathe * 0.4, 0, 0);
+    if (!rig.boneDriven) {
+      rig.torso.position.y = 1.18 + breathe;
+    }
+    applyLimbRotation(rig, 'head', breathe * 0.2, 0, 0);
+    applyLimbRotation(rig, 'armL', 0.08, 0, 0.06);
+    applyLimbRotation(rig, 'armR', 0.08, 0, -0.06);
+    applyLimbRotation(rig, 'legL', 0, 0, 0.02);
+    applyLimbRotation(rig, 'legR', 0, 0, -0.02);
     rig.visual.position.y = 0;
   }
 
@@ -133,44 +152,36 @@ export class HumanoidAnimator {
     const leg = Math.sin(t) * swing;
     const arm = Math.sin(t) * swing * (run ? 0.85 : 0.7);
     const bounce = Math.abs(Math.sin(t)) * (run ? 0.055 : 0.03) * this.weight;
-    rig.legL.rotation.x = leg;
-    rig.legR.rotation.x = -leg;
-    rig.armL.rotation.x = -arm;
-    rig.armR.rotation.x = arm;
-    rig.armL.rotation.z = 0.08;
-    rig.armR.rotation.z = -0.08;
-    rig.torso.rotation.y = Math.sin(t) * 0.07 * this.weight;
-    rig.torso.rotation.x = run ? 0.12 : 0.04;
-    rig.torso.position.y = 1.18;
-    rig.head.rotation.y = -rig.torso.rotation.y * 0.4;
+    const torsoYaw = Math.sin(t) * 0.07 * this.weight;
+    applyLimbRotation(rig, 'legL', leg, 0, 0);
+    applyLimbRotation(rig, 'legR', -leg, 0, 0);
+    applyLimbRotation(rig, 'armL', -arm, 0, 0.08);
+    applyLimbRotation(rig, 'armR', arm, 0, -0.08);
+    applyLimbRotation(rig, 'torso', run ? 0.12 : 0.04, torsoYaw, 0);
+    if (!rig.boneDriven) {
+      rig.torso.position.y = 1.18;
+    }
+    applyLimbRotation(rig, 'head', 0, -torsoYaw * 0.4, 0);
     rig.visual.position.y = bounce * 0.35;
   }
 
   private poseAir(rig: AvatarRig, _jumping: boolean) {
-    rig.legL.rotation.x = -0.45;
-    rig.legR.rotation.x = -0.32;
-    rig.armL.rotation.x = 0.35;
-    rig.armR.rotation.x = 0.45;
-    rig.armL.rotation.z = 0.25;
-    rig.armR.rotation.z = -0.25;
-    rig.torso.rotation.x = -0.08;
-    rig.torso.rotation.y = 0;
-    rig.head.rotation.x = 0;
+    applyLimbRotation(rig, 'legL', -0.45, 0, 0);
+    applyLimbRotation(rig, 'legR', -0.32, 0, 0);
+    applyLimbRotation(rig, 'armL', 0.35, 0, 0.25);
+    applyLimbRotation(rig, 'armR', 0.45, 0, -0.25);
+    applyLimbRotation(rig, 'torso', -0.08, 0, 0);
+    applyLimbRotation(rig, 'head', 0, 0, 0);
     rig.visual.position.y = 0;
   }
 
   private poseSlide(rig: AvatarRig) {
-    rig.torso.rotation.x = 0.62;
-    rig.torso.rotation.z = 0.06;
-    rig.head.rotation.x = -0.28;
-    rig.armL.rotation.x = 0.95;
-    rig.armR.rotation.x = 1.05;
-    rig.armL.rotation.z = 0.35;
-    rig.armR.rotation.z = -0.35;
-    rig.legL.rotation.x = 0.22;
-    rig.legR.rotation.x = 0.38;
-    rig.legL.rotation.z = 0.08;
-    rig.legR.rotation.z = -0.05;
+    applyLimbRotation(rig, 'torso', 0.62, 0, 0.06);
+    applyLimbRotation(rig, 'head', -0.28, 0, 0);
+    applyLimbRotation(rig, 'armL', 0.95, 0, 0.35);
+    applyLimbRotation(rig, 'armR', 1.05, 0, -0.35);
+    applyLimbRotation(rig, 'legL', 0.22, 0, 0.08);
+    applyLimbRotation(rig, 'legR', 0.38, 0, -0.05);
     rig.visual.position.y = -0.04;
   }
 }

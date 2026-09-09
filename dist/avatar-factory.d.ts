@@ -1,4 +1,4 @@
-import { Mesh, Scene, TransformNode } from '@babylonjs/core';
+import { Mesh, Scene, TransformNode, Vector3 as BVector3 } from '@babylonjs/core';
 import type { AnimationGroup } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import type { SdkLobbyAvatar } from './platform-types';
@@ -13,6 +13,16 @@ export interface AvatarRig {
     armR: TransformNode;
     legL: TransformNode;
     legR: TransformNode;
+    /** Skinned GLB: pivots are skeleton bones — only rotate, never rewrite bind positions. */
+    boneDriven?: boolean;
+    restRotation?: {
+        torso: BVector3;
+        head: BVector3;
+        armL: BVector3;
+        armR: BVector3;
+        legL: BVector3;
+        legR: BVector3;
+    };
 }
 export declare class AvatarFactory {
     static create(scene: Scene, avatar: SdkLobbyAvatar, name?: string, displayName?: string, username?: string, options?: {

@@ -87,6 +87,72 @@ function emptyPivot(scene, name, parent, y) {
     n.position.y = y;
     return n;
 }
+function collectNamedTransforms(skeletons, transformNodes) {
+    const out = [];
+    for (const sk of skeletons) {
+        for (const bone of sk.bones) {
+            const tn = bone.getTransformNode?.() ?? null;
+            if (tn)
+                out.push({ name: bone.name, node: tn });
+        }
+    }
+    for (const tn of transformNodes) {
+        out.push({ name: tn.name, node: tn });
+    }
+    return out;
+}
+function resolveNamedTransform(named, candidates) {
+    for (const candidate of candidates) {
+        const exact = named.find((n) => n.name.toLowerCase() === candidate.toLowerCase());
+        if (exact)
+            return exact.node;
+    }
+    for (const candidate of candidates) {
+        const soft = named.find((n) => n.name.toLowerCase().includes(candidate.toLowerCase()));
+        if (soft)
+            return soft.node;
+    }
+    return null;
+}
+function captureRestEuler(node) {
+    if (node.rotationQuaternion) {
+        return node.rotationQuaternion.toEulerAngles();
+    }
+    return node.rotation.clone();
+}
+/** Bind Tripo / Mixamo-style skeleton bones to AvatarRig limb pivots. */
+function bindSkeletonRig(skeletons, transformNodes) {
+    if (!skeletons.length)
+        return null;
+    const named = collectNamedTransforms(skeletons, transformNodes);
+    const torso = resolveNamedTransform(named, ['Spine01', 'Spine02', 'Waist', 'spine', 'Spine']);
+    const head = resolveNamedTransform(named, ['Head', 'head']);
+    const armL = resolveNamedTransform(named, ['L_UpperarmTwist01', 'L_Upperarm', 'LeftArm', 'Left_UpperArm', 'mixamorig:LeftArm']);
+    const armR = resolveNamedTransform(named, ['R_UpperarmTwist01', 'R_Upperarm', 'RightArm', 'Right_UpperArm', 'mixamorig:RightArm']);
+    const legL = resolveNamedTransform(named, ['L_ThighTwist01', 'L_Thigh', 'LeftUpLeg', 'Left_Thigh', 'mixamorig:LeftUpLeg']);
+    const legR = resolveNamedTransform(named, ['R_ThighTwist01', 'R_Thigh', 'RightUpLeg', 'Right_Thigh', 'mixamorig:RightUpLeg']);
+    if (!torso || !head || !armL || !armR || !legL || !legR) {
+        console.warn('[lobby-sdk] skinned GLB missing expected bones', {
+            torso: !!torso,
+            head: !!head,
+            armL: !!armL,
+            armR: !!armR,
+            legL: !!legL,
+            legR: !!legR,
+            available: [...new Set(named.map((n) => n.name))],
+        });
+        return null;
+    }
+    const restRotation = {
+        torso: captureRestEuler(torso),
+        head: captureRestEuler(head),
+        armL: captureRestEuler(armL),
+        armR: captureRestEuler(armR),
+        legL: captureRestEuler(legL),
+        legR: captureRestEuler(legR),
+    };
+    return { torso, head, armL, armR, legL, legR, boneDriven: true, restRotation };
+}
 export class AvatarFactory {
     static create(scene, avatar, name = 'avatar', displayName, username, options = {}) {
         const fromPreset = PRESET_LOOKS[avatar.presetKey] ?? PRESET_LOOKS['default-1'];
@@ -205,10 +271,12 @@ export class AvatarFactory {
         const rootUrl = slash >= 0 ? glbUrl.slice(0, slash + 1) : '';
         const fileName = slash >= 0 ? glbUrl.slice(slash + 1) : glbUrl;
         const result = await SceneLoader.ImportMeshAsync('', rootUrl, fileName, scene);
-        const importedRoot = result.meshes[0];
-        if (importedRoot) {
-            importedRoot.parent = model;
-            importedRoot.position.set(0, 0, 0);
+        const transformNodes = (result.transformNodes ?? []);
+        const skeletons = (result.skeletons ?? []);
+        // Keep mesh + skeleton hierarchy together under model (needed for skinned GLBs).
+        for (const node of [...result.meshes, ...transformNodes]) {
+            if (!node.parent)
+                node.parent = model;
         }
         for (const mesh of result.meshes) {
             mesh.isPickable = false;
@@ -216,18 +284,38 @@ export class AvatarFactory {
         }
         fitGlbToHumanHeight(model, result.meshes);
         simplifyGlbMaterials(result.meshes, scene);
-        // Rigid unskinned GLB: keep as one mesh (no limb split → no body seams).
-        // Empty pivots exist for rig shape; HumanoidAnimator skips limb poses when rigidGlb is set.
-        const torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
-        const head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);
-        const armL = emptyPivot(scene, `${name}-arm-l`, visual, 1.48);
-        armL.position.x = -0.5;
-        const armR = emptyPivot(scene, `${name}-arm-r`, visual, 1.48);
-        armR.position.x = 0.5;
-        const legL = emptyPivot(scene, `${name}-leg-l`, visual, 0.9);
-        legL.position.x = -0.18;
-        const legR = emptyPivot(scene, `${name}-leg-r`, visual, 0.9);
-        legR.position.x = 0.18;
+        const skinned = bindSkeletonRig(skeletons, transformNodes);
+        let torso;
+        let head;
+        let armL;
+        let armR;
+        let legL;
+        let legR;
+        let boneDriven = false;
+        let restRotation;
+        let rigidGlb = false;
+        if (skinned) {
+            ({ torso, head, armL, armR, legL, legR, restRotation } = skinned);
+            boneDriven = true;
+            console.info('[lobby-sdk] GLB skinned bone rig bound', {
+                skeletons: skeletons.length,
+                bones: skeletons[0]?.bones.length ?? 0,
+            });
+        }
+        else {
+            // Unskinned / no usable bones: single rigid mesh, no limb posing.
+            rigidGlb = true;
+            torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
+            head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);
+            armL = emptyPivot(scene, `${name}-arm-l`, visual, 1.48);
+            armL.position.x = -0.5;
+            armR = emptyPivot(scene, `${name}-arm-r`, visual, 1.48);
+            armR.position.x = 0.5;
+            legL = emptyPivot(scene, `${name}-leg-l`, visual, 0.9);
+            legL.position.x = -0.18;
+            legR = emptyPivot(scene, `${name}-leg-r`, visual, 0.9);
+            legR.position.x = 0.18;
+        }
         attachNameTag(scene, visual, displayName ?? '', username ?? '', name);
         let collider = null;
         let root = visual;
@@ -252,9 +340,29 @@ export class AvatarFactory {
             root = collider;
         }
         root.name = name;
-        const groups = (result.animationGroups ?? []);
-        const rig = { root, visual, collider, torso, head, armL, armR, legL, legR };
-        root.metadata = { ...(root.metadata ?? {}), rig, animationGroups: groups, glbModel: model, rigidGlb: true };
+        // Prefer procedural bone posing when we bound a skeleton (ignore empty clip lists).
+        const groups = boneDriven ? [] : (result.animationGroups ?? []);
+        const rig = {
+            root,
+            visual,
+            collider,
+            torso,
+            head,
+            armL,
+            armR,
+            legL,
+            legR,
+            boneDriven,
+            restRotation,
+        };
+        root.metadata = {
+            ...(root.metadata ?? {}),
+            rig,
+            animationGroups: groups,
+            glbModel: model,
+            rigidGlb,
+            boneDriven,
+        };
         return root;
     }
     static getRig(root) {
