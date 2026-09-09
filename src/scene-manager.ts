@@ -33,8 +33,6 @@ export class SceneManager {
       limitDeviceRatio: quality.pixelRatioCap,
     });
     this.scene = new Scene(this.engine);
-    // Plaza adds many PointLights; keep materials within WebGL uniform limits.
-    this.scene.maxSimultaneousLights = 4;
     this.scene.collisionsEnabled = true;
     this.scene.gravity = new Vector3(0, -0.8, 0);
 
