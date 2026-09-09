@@ -205,12 +205,28 @@ export class AvatarFactory {
       return AvatarFactory.create(scene, avatar, name, displayName, username, options);
     }
 
+    const candidates = [glbUrl];
     try {
-      return await AvatarFactory.createFromGlb(scene, glbUrl, name, displayName, username, options);
-    } catch (err) {
-      console.warn('[lobby-sdk] GLB avatar failed, falling back to procedural', glbUrl, err);
-      return AvatarFactory.create(scene, avatar, name, displayName, username, options);
+      const absolute = new URL(glbUrl, typeof window !== 'undefined' ? window.location.href : 'http://localhost');
+      if (absolute.pathname && absolute.pathname !== glbUrl) {
+        candidates.push(absolute.pathname);
+      }
+    } catch {
+      // ignore
     }
+
+    let lastError: unknown;
+    for (const url of candidates) {
+      try {
+        return await AvatarFactory.createFromGlb(scene, url, name, displayName, username, options);
+      } catch (err) {
+        lastError = err;
+        console.warn('[lobby-sdk] GLB avatar load failed, trying next URL', url, err);
+      }
+    }
+
+    console.warn('[lobby-sdk] GLB avatar failed, falling back to procedural', glbUrl, lastError);
+    return AvatarFactory.create(scene, avatar, name, displayName, username, options);
   }
 
   private static async createFromGlb(
@@ -223,7 +239,10 @@ export class AvatarFactory {
   ): Promise<TransformNode> {
     const visual = new TransformNode(`${name}-visual`, scene);
 
-    const result = await SceneLoader.ImportMeshAsync('', glbUrl, undefined, scene);
+    const slash = glbUrl.lastIndexOf('/');
+    const rootUrl = slash >= 0 ? glbUrl.slice(0, slash + 1) : '';
+    const fileName = slash >= 0 ? glbUrl.slice(slash + 1) : glbUrl;
+    const result = await SceneLoader.ImportMeshAsync('', rootUrl, fileName, scene);
     const importedRoot = result.meshes[0];
     if (importedRoot) {
       importedRoot.parent = visual;
