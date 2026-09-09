@@ -90,6 +90,42 @@ function fitGlbToHumanHeight(visual: TransformNode, meshes: AbstractMesh[], targ
   visual.position.y -= fitted.min.y;
 }
 
+function simplifyGlbMaterials(meshes: AbstractMesh[], scene: Scene) {
+  for (const mesh of meshes) {
+    const mat = mesh.material;
+    if (!mat) continue;
+
+    const className = mat.getClassName?.() ?? '';
+    if (className.includes('PBR')) {
+      const anyMat = mat as {
+        name: string;
+        albedoColor?: Color3;
+        emissiveColor?: Color3;
+        albedoTexture?: StandardMaterial['diffuseTexture'];
+        dispose: (force?: boolean, textures?: boolean) => void;
+      };
+      const std = new StandardMaterial(`${anyMat.name || mesh.name}-std`, scene);
+      std.diffuseColor = anyMat.albedoColor?.clone() ?? new Color3(0.75, 0.75, 0.78);
+      std.emissiveColor = anyMat.emissiveColor?.clone() ?? new Color3(0, 0, 0);
+      if (anyMat.albedoTexture) std.diffuseTexture = anyMat.albedoTexture;
+      std.specularColor = new Color3(0.08, 0.08, 0.08);
+      std.maxSimultaneousLights = 4;
+      mesh.material = std;
+      try {
+        anyMat.dispose(false, false);
+      } catch {
+        // ignore
+      }
+      continue;
+    }
+
+    const lit = mat as StandardMaterial;
+    if (typeof lit.maxSimultaneousLights === 'number') {
+      lit.maxSimultaneousLights = 4;
+    }
+  }
+}
+
 function emptyPivot(scene: Scene, name: string, parent: TransformNode, y: number): TransformNode {
   const n = new TransformNode(name, scene);
   n.parent = parent;
@@ -259,6 +295,7 @@ export class AvatarFactory {
     }
 
     fitGlbToHumanHeight(visual, result.meshes as AbstractMesh[]);
+    simplifyGlbMaterials(result.meshes as AbstractMesh[], scene);
 
     const torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
     const head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);

@@ -53,6 +53,36 @@ function fitGlbToHumanHeight(visual, meshes, targetHeight = 1.85) {
     const fitted = visual.getHierarchyBoundingVectors(true);
     visual.position.y -= fitted.min.y;
 }
+function simplifyGlbMaterials(meshes, scene) {
+    for (const mesh of meshes) {
+        const mat = mesh.material;
+        if (!mat)
+            continue;
+        const className = mat.getClassName?.() ?? '';
+        if (className.includes('PBR')) {
+            const anyMat = mat;
+            const std = new StandardMaterial(`${anyMat.name || mesh.name}-std`, scene);
+            std.diffuseColor = anyMat.albedoColor?.clone() ?? new Color3(0.75, 0.75, 0.78);
+            std.emissiveColor = anyMat.emissiveColor?.clone() ?? new Color3(0, 0, 0);
+            if (anyMat.albedoTexture)
+                std.diffuseTexture = anyMat.albedoTexture;
+            std.specularColor = new Color3(0.08, 0.08, 0.08);
+            std.maxSimultaneousLights = 4;
+            mesh.material = std;
+            try {
+                anyMat.dispose(false, false);
+            }
+            catch {
+                // ignore
+            }
+            continue;
+        }
+        const lit = mat;
+        if (typeof lit.maxSimultaneousLights === 'number') {
+            lit.maxSimultaneousLights = 4;
+        }
+    }
+}
 function emptyPivot(scene, name, parent, y) {
     const n = new TransformNode(name, scene);
     n.parent = parent;
@@ -183,6 +213,7 @@ export class AvatarFactory {
             mesh.checkCollisions = false;
         }
         fitGlbToHumanHeight(visual, result.meshes);
+        simplifyGlbMaterials(result.meshes, scene);
         const torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
         const head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);
         const armL = emptyPivot(scene, `${name}-arm-l`, visual, 1.48);
