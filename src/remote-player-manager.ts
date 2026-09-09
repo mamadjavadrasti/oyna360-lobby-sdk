@@ -1,4 +1,4 @@
-import type { Scene } from '@babylonjs/core';
+import type { Scene, TransformNode } from '@babylonjs/core';
 import type { LobbyAnimationState, LobbyEmoteKind, LobbyPlayerState } from './protocol';
 import { AvatarFactory } from './avatar-factory';
 import { HumanoidAnimator } from './humanoid-animator';
@@ -10,7 +10,7 @@ function isAir(animation: LobbyAnimationState) {
 
 interface RemoteEntry {
   state: LobbyPlayerState;
-  root: ReturnType<typeof AvatarFactory.create>;
+  root: TransformNode;
   animator: HumanoidAnimator;
   yaw: number;
   targetPosition: LobbyPlayerState['position'];
@@ -21,6 +21,7 @@ interface RemoteEntry {
 
 export class RemotePlayerManager {
   private readonly remotes = new Map<string, RemoteEntry>();
+  private readonly loading = new Set<string>();
 
   constructor(
     private readonly scene: Scene,
@@ -42,28 +43,48 @@ export class RemotePlayerManager {
       return;
     }
 
-    const root = AvatarFactory.create(
-      this.scene,
-      player.avatar,
-      `remote-${player.userId}`,
-      player.displayName,
-      player.username,
-      { collider: 'body' },
-    );
-    const entry: RemoteEntry = {
-      state: player,
-      root,
-      animator: new HumanoidAnimator(root),
-      yaw: player.rotationY,
-      targetPosition: { ...player.position },
-      targetRotationY: player.rotationY,
-      targetAnimation: player.animation,
-      lastUpdateAt: Date.now(),
-    };
-    this.remotes.set(player.userId, entry);
-    AvatarFactory.setPosition(root, player.position);
-    AvatarFactory.setRotationY(root, player.rotationY);
-    syncCharacterObstacle(this.scene, root.name, player.position.x, player.position.z);
+    if (this.loading.has(player.userId)) return;
+    this.loading.add(player.userId);
+    void this.spawnRemote(player);
+  }
+
+  private async spawnRemote(player: LobbyPlayerState) {
+    try {
+      if (this.remotes.has(player.userId)) return;
+      const root = await AvatarFactory.createAsync(
+        this.scene,
+        player.avatar,
+        `remote-${player.userId}`,
+        player.displayName,
+        player.username,
+        { collider: 'body' },
+      );
+      // Left while loading
+      if (!this.loading.has(player.userId) && !this.remotes.has(player.userId)) {
+        root.dispose();
+        return;
+      }
+      if (this.remotes.has(player.userId)) {
+        root.dispose();
+        return;
+      }
+      const entry: RemoteEntry = {
+        state: player,
+        root,
+        animator: new HumanoidAnimator(root, AvatarFactory.getAnimationGroups(root)),
+        yaw: player.rotationY,
+        targetPosition: { ...player.position },
+        targetRotationY: player.rotationY,
+        targetAnimation: player.animation,
+        lastUpdateAt: Date.now(),
+      };
+      this.remotes.set(player.userId, entry);
+      AvatarFactory.setPosition(root, player.position);
+      AvatarFactory.setRotationY(root, player.rotationY);
+      syncCharacterObstacle(this.scene, root.name, player.position.x, player.position.z);
+    } finally {
+      this.loading.delete(player.userId);
+    }
   }
 
   applyMove(payload: {
@@ -87,6 +108,7 @@ export class RemotePlayerManager {
   }
 
   remove(userId: string) {
+    this.loading.delete(userId);
     const entry = this.remotes.get(userId);
     if (!entry) return;
     removeCharacterObstacle(this.scene, entry.root.name);
@@ -134,6 +156,7 @@ export class RemotePlayerManager {
   }
 
   dispose() {
+    this.loading.clear();
     for (const entry of this.remotes.values()) {
       removeCharacterObstacle(this.scene, entry.root.name);
       entry.root.dispose();

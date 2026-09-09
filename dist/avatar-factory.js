@@ -1,4 +1,5 @@
-import { Color3, MeshBuilder, StandardMaterial, TransformNode, Vector3 as BVector3, } from '@babylonjs/core';
+import { Color3, MeshBuilder, SceneLoader, StandardMaterial, TransformNode, Vector3 as BVector3, } from '@babylonjs/core';
+import '@babylonjs/loaders/glTF';
 import { attachNameTag } from './name-tag';
 const PRESET_LOOKS = {
     'default-1': { bodyColor: '#6366f1', accentColor: '#fbbf24', pantsColor: '#1e3a5f', hairColor: '#312e81' },
@@ -23,6 +24,40 @@ function box(scene, name, size, material, parent, local) {
     mesh.isPickable = false;
     mesh.checkCollisions = false;
     return mesh;
+}
+function resolveGlbUrl(avatar) {
+    if (avatar.presetKind !== 'glb')
+        return null;
+    const config = (avatar.customConfig ?? {});
+    const url = config.glbUrl;
+    return typeof url === 'string' && url.trim() ? url.trim() : null;
+}
+function fitGlbToHumanHeight(visual, meshes, targetHeight = 1.85) {
+    const roots = meshes.filter((m) => !m.parent || meshes.includes(m.parent));
+    const sample = roots[0] ?? meshes[0];
+    if (!sample)
+        return;
+    // Force world matrix update after parenting
+    visual.computeWorldMatrix(true);
+    for (const m of meshes)
+        m.computeWorldMatrix(true);
+    const { min, max } = visual.getHierarchyBoundingVectors(true);
+    const height = max.y - min.y;
+    if (!(height > 0.01))
+        return;
+    const scale = targetHeight / height;
+    visual.scaling.setAll(scale);
+    visual.computeWorldMatrix(true);
+    for (const m of meshes)
+        m.computeWorldMatrix(true);
+    const fitted = visual.getHierarchyBoundingVectors(true);
+    visual.position.y -= fitted.min.y;
+}
+function emptyPivot(scene, name, parent, y) {
+    const n = new TransformNode(name, scene);
+    n.parent = parent;
+    n.position.y = y;
+    return n;
 }
 export class AvatarFactory {
     static create(scene, avatar, name = 'avatar', displayName, username, options = {}) {
@@ -98,8 +133,80 @@ export class AvatarFactory {
         root.metadata = { ...(root.metadata ?? {}), rig };
         return root;
     }
+    /** Procedural sync create, or GLB load when presetKind is glb + glbUrl. */
+    static async createAsync(scene, avatar, name = 'avatar', displayName, username, options = {}) {
+        const glbUrl = resolveGlbUrl(avatar);
+        if (!glbUrl) {
+            return AvatarFactory.create(scene, avatar, name, displayName, username, options);
+        }
+        try {
+            return await AvatarFactory.createFromGlb(scene, glbUrl, name, displayName, username, options);
+        }
+        catch (err) {
+            console.warn('[lobby-sdk] GLB avatar failed, falling back to procedural', glbUrl, err);
+            return AvatarFactory.create(scene, avatar, name, displayName, username, options);
+        }
+    }
+    static async createFromGlb(scene, glbUrl, name, displayName, username, options) {
+        const visual = new TransformNode(`${name}-visual`, scene);
+        const result = await SceneLoader.ImportMeshAsync('', glbUrl, undefined, scene);
+        const importedRoot = result.meshes[0];
+        if (importedRoot) {
+            importedRoot.parent = visual;
+            importedRoot.position.set(0, 0, 0);
+        }
+        for (const mesh of result.meshes) {
+            mesh.isPickable = false;
+            mesh.checkCollisions = false;
+        }
+        fitGlbToHumanHeight(visual, result.meshes);
+        const torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
+        const head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);
+        const armL = emptyPivot(scene, `${name}-arm-l`, visual, 1.48);
+        armL.position.x = -0.5;
+        const armR = emptyPivot(scene, `${name}-arm-r`, visual, 1.48);
+        armR.position.x = 0.5;
+        const legL = emptyPivot(scene, `${name}-leg-l`, visual, 0.9);
+        legL.position.x = -0.18;
+        const legR = emptyPivot(scene, `${name}-leg-r`, visual, 0.9);
+        legR.position.x = 0.18;
+        attachNameTag(scene, visual, displayName ?? '', username ?? '', name);
+        let collider = null;
+        let root = visual;
+        if (options.collider === true || options.collider === 'player') {
+            collider = MeshBuilder.CreateBox(`${name}-collider`, { width: 0.12, height: 0.12, depth: 0.12 }, scene);
+            collider.isVisible = false;
+            collider.isPickable = false;
+            collider.checkCollisions = true;
+            collider.ellipsoid = new BVector3(0.42, 1.05, 0.42);
+            collider.ellipsoidOffset = new BVector3(0, 1.05, 0);
+            visual.parent = collider;
+            visual.position.x = 0;
+            visual.position.z = 0;
+            root = collider;
+        }
+        else if (options.collider === 'body') {
+            collider = MeshBuilder.CreateBox(`${name}-bodycol`, { width: 0.12, height: 0.12, depth: 0.12 }, scene);
+            collider.isVisible = false;
+            collider.isPickable = false;
+            collider.checkCollisions = false;
+            visual.parent = collider;
+            visual.position.x = 0;
+            visual.position.z = 0;
+            root = collider;
+        }
+        root.name = name;
+        const groups = (result.animationGroups ?? []);
+        const rig = { root, visual, collider, torso, head, armL, armR, legL, legR };
+        root.metadata = { ...(root.metadata ?? {}), rig, animationGroups: groups };
+        return root;
+    }
     static getRig(root) {
         return root.metadata?.rig ?? null;
+    }
+    static getAnimationGroups(root) {
+        const groups = root.metadata?.animationGroups;
+        return groups?.length ? groups : undefined;
     }
     static setPosition(root, position) {
         root.position = new BVector3(position.x, position.y, position.z);

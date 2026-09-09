@@ -82,7 +82,7 @@ export class LocalPlayerController {
     this.walkSpeed = config.playerSpeed ?? 10.5;
     this.runMultiplier = config.runMultiplier ?? 1.3;
     this.root.position.set(spawn.x, spawn.y, spawn.z);
-    this.animator = new HumanoidAnimator(root);
+    this.animator = new HumanoidAnimator(root, AvatarFactory.getAnimationGroups(root));
     this.yaw = 0;
     this.syncVisualYaw();
 

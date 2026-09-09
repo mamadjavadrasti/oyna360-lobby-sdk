@@ -105,7 +105,7 @@ export class PlatformLobby {
         const layout = this.config;
         const provisionalSlot = provisionalSpawnSlot(this.init.user.id, layout.spawnSlotCount ?? layout.spawnPoints?.length ?? 16);
         const spawnPose = resolveSpawnPose(layout, provisionalSlot);
-        this.localAvatar = AvatarFactory.create(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName, this.init.user.username, { collider: true });
+        this.localAvatar = await AvatarFactory.createAsync(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName, this.init.user.username, { collider: true });
         this.localController = new LocalPlayerController(this.localAvatar, spawnPose.position, this.sceneManager.scene, () => this.sceneManager.camera, this.config);
         this.localController.teleportTo(spawnPose.position, spawnPose.rotationY);
         this.localController.setSounds(this.music);

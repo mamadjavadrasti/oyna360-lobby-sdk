@@ -134,7 +134,7 @@ export class PlatformLobby {
     );
     const spawnPose = resolveSpawnPose(layout, provisionalSlot);
 
-    this.localAvatar = AvatarFactory.create(
+    this.localAvatar = await AvatarFactory.createAsync(
       this.sceneManager.scene,
       this.init.avatar,
       'local-player',

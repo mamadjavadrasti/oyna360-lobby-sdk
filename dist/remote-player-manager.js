@@ -8,6 +8,7 @@ export class RemotePlayerManager {
     scene;
     selfUserId;
     remotes = new Map();
+    loading = new Set();
     constructor(scene, selfUserId) {
         this.scene = scene;
         this.selfUserId = selfUserId;
@@ -26,21 +27,43 @@ export class RemotePlayerManager {
             existing.state = player;
             return;
         }
-        const root = AvatarFactory.create(this.scene, player.avatar, `remote-${player.userId}`, player.displayName, player.username, { collider: 'body' });
-        const entry = {
-            state: player,
-            root,
-            animator: new HumanoidAnimator(root),
-            yaw: player.rotationY,
-            targetPosition: { ...player.position },
-            targetRotationY: player.rotationY,
-            targetAnimation: player.animation,
-            lastUpdateAt: Date.now(),
-        };
-        this.remotes.set(player.userId, entry);
-        AvatarFactory.setPosition(root, player.position);
-        AvatarFactory.setRotationY(root, player.rotationY);
-        syncCharacterObstacle(this.scene, root.name, player.position.x, player.position.z);
+        if (this.loading.has(player.userId))
+            return;
+        this.loading.add(player.userId);
+        void this.spawnRemote(player);
+    }
+    async spawnRemote(player) {
+        try {
+            if (this.remotes.has(player.userId))
+                return;
+            const root = await AvatarFactory.createAsync(this.scene, player.avatar, `remote-${player.userId}`, player.displayName, player.username, { collider: 'body' });
+            // Left while loading
+            if (!this.loading.has(player.userId) && !this.remotes.has(player.userId)) {
+                root.dispose();
+                return;
+            }
+            if (this.remotes.has(player.userId)) {
+                root.dispose();
+                return;
+            }
+            const entry = {
+                state: player,
+                root,
+                animator: new HumanoidAnimator(root, AvatarFactory.getAnimationGroups(root)),
+                yaw: player.rotationY,
+                targetPosition: { ...player.position },
+                targetRotationY: player.rotationY,
+                targetAnimation: player.animation,
+                lastUpdateAt: Date.now(),
+            };
+            this.remotes.set(player.userId, entry);
+            AvatarFactory.setPosition(root, player.position);
+            AvatarFactory.setRotationY(root, player.rotationY);
+            syncCharacterObstacle(this.scene, root.name, player.position.x, player.position.z);
+        }
+        finally {
+            this.loading.delete(player.userId);
+        }
     }
     applyMove(payload) {
         const entry = this.remotes.get(payload.userId);
@@ -58,6 +81,7 @@ export class RemotePlayerManager {
         entry.state.emote = emote;
     }
     remove(userId) {
+        this.loading.delete(userId);
         const entry = this.remotes.get(userId);
         if (!entry)
             return;
@@ -105,6 +129,7 @@ export class RemotePlayerManager {
         }));
     }
     dispose() {
+        this.loading.clear();
         for (const entry of this.remotes.values()) {
             removeCharacterObstacle(this.scene, entry.root.name);
             entry.root.dispose();

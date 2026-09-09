@@ -4,8 +4,10 @@ export declare class RemotePlayerManager {
     private readonly scene;
     private readonly selfUserId;
     private readonly remotes;
+    private readonly loading;
     constructor(scene: Scene, selfUserId: string);
     upsert(player: LobbyPlayerState): void;
+    private spawnRemote;
     applyMove(payload: {
         userId: string;
         position: LobbyPlayerState['position'];
