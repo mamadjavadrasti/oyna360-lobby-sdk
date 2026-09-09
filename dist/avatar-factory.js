@@ -370,7 +370,9 @@ export class AvatarFactory {
                 }
                 if (importRoot) {
                     importRoot.setEnabled(false);
-                    importRoot.isVisible = false;
+                    if ('isVisible' in importRoot) {
+                        importRoot.isVisible = false;
+                    }
                 }
                 for (const sk of skeletons) {
                     try {
