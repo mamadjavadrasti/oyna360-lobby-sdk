@@ -78,8 +78,9 @@ export class LocalPlayerController {
     config: PlatformLobbyConfig = {},
   ) {
     this.spawn = { ...spawn };
-    this.walkSpeed = config.playerSpeed ?? 6.2;
-    this.runMultiplier = config.runMultiplier ?? 1.7;
+    // Walk ≈ former default sprint (6.2×1.7); sprint a bit faster than that.
+    this.walkSpeed = config.playerSpeed ?? 10.5;
+    this.runMultiplier = config.runMultiplier ?? 1.3;
     this.root.position.set(spawn.x, spawn.y, spawn.z);
     this.animator = new HumanoidAnimator(root);
     this.yaw = 0;
