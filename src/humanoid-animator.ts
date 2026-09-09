@@ -33,7 +33,8 @@ export class HumanoidAnimator {
 
   update(dt: number, state: LobbyAnimationState, grounded: boolean) {
     const rig = AvatarFactory.getRig(this.root);
-    if (this.groups) {
+    const forceProcedural = Boolean(this.root.metadata?.forceProceduralAnim);
+    if (this.groups && !forceProcedural) {
       this.playClip(state);
       return;
     }
@@ -72,7 +73,8 @@ export class HumanoidAnimator {
       this.clipStepAcc = 0;
       return false;
     }
-    if (this.groups) {
+    const forceProcedural = Boolean(this.root.metadata?.forceProceduralAnim);
+    if (this.groups && !forceProcedural) {
       this.clipStepAcc += dt;
       const interval = state === 'run' ? 0.28 : 0.42;
       if (this.clipStepAcc >= interval) {
