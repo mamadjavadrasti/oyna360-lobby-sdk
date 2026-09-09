@@ -1,6 +1,5 @@
 import {
   Color3,
-  Matrix,
   Mesh,
   MeshBuilder,
   Scene,
@@ -8,10 +7,8 @@ import {
   StandardMaterial,
   TransformNode,
   Vector3 as BVector3,
-  VertexBuffer,
-  VertexData,
 } from '@babylonjs/core';
-import type { AnimationGroup, AbstractMesh, Material } from '@babylonjs/core';
+import type { AnimationGroup, AbstractMesh } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import type { SdkLobbyAvatar } from './platform-types';
 import { attachNameTag } from './name-tag';
@@ -28,8 +25,6 @@ export interface AvatarRig {
   legL: TransformNode;
   legR: TransformNode;
 }
-
-type BodyPartId = 'torso' | 'head' | 'armL' | 'armR' | 'legL' | 'legR';
 
 const PRESET_LOOKS: Record<string, { bodyColor: string; accentColor: string; pantsColor: string; hairColor: string }> = {
   'default-1': { bodyColor: '#6366f1', accentColor: '#fbbf24', pantsColor: '#1e3a5f', hairColor: '#312e81' },
@@ -134,178 +129,6 @@ function emptyPivot(scene: Scene, name: string, parent: TransformNode, y: number
   n.parent = parent;
   n.position.y = y;
   return n;
-}
-
-function classifyBodyPart(nx: number, ny: number): BodyPartId {
-  // Normalized AABB: ny=0 feet, ny=1 head. Tuned for blocky Roblox-style meshes.
-  if (ny > 0.74) return 'head';
-  if (ny < 0.42) return nx < 0.5 ? 'legL' : 'legR';
-  if (nx < 0.24) return 'armL';
-  if (nx > 0.76) return 'armR';
-  return 'torso';
-}
-
-/**
- * Split a rigid (unskinned) GLB into limb meshes parented to the same pivots
- * HumanoidAnimator already drives for procedural avatars.
- */
-function segmentUnskinnedGlbToRig(
-  scene: Scene,
-  sourceMeshes: AbstractMesh[],
-  visual: TransformNode,
-  name: string,
-): Omit<AvatarRig, 'root' | 'visual' | 'collider'> | null {
-  visual.computeWorldMatrix(true);
-  const invVisual = Matrix.Invert(visual.getWorldMatrix());
-
-  type Acc = {
-    positions: number[];
-    indices: number[];
-    uvs: number[];
-    map: Map<number, number>;
-    material: Material | null;
-  };
-  const parts: Record<BodyPartId, Acc> = {
-    torso: { positions: [], indices: [], uvs: [], map: new Map(), material: null },
-    head: { positions: [], indices: [], uvs: [], map: new Map(), material: null },
-    armL: { positions: [], indices: [], uvs: [], map: new Map(), material: null },
-    armR: { positions: [], indices: [], uvs: [], map: new Map(), material: null },
-    legL: { positions: [], indices: [], uvs: [], map: new Map(), material: null },
-    legR: { positions: [], indices: [], uvs: [], map: new Map(), material: null },
-  };
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let minZ = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  let maxZ = -Infinity;
-  const worldVerts: { x: number; y: number; z: number }[][] = [];
-
-  for (const mesh of sourceMeshes) {
-    if (!(mesh instanceof Mesh)) continue;
-    const pos = mesh.getVerticesData(VertexBuffer.PositionKind);
-    if (!pos || pos.length < 9) continue;
-    mesh.computeWorldMatrix(true);
-    const wm = mesh.getWorldMatrix();
-    const locals: { x: number; y: number; z: number }[] = [];
-    for (let i = 0; i < pos.length; i += 3) {
-      const world = BVector3.TransformCoordinates(new BVector3(pos[i], pos[i + 1], pos[i + 2]), wm);
-      const local = BVector3.TransformCoordinates(world, invVisual);
-      locals.push({ x: local.x, y: local.y, z: local.z });
-      if (local.x < minX) minX = local.x;
-      if (local.y < minY) minY = local.y;
-      if (local.z < minZ) minZ = local.z;
-      if (local.x > maxX) maxX = local.x;
-      if (local.y > maxY) maxY = local.y;
-      if (local.z > maxZ) maxZ = local.z;
-    }
-    worldVerts.push(locals);
-  }
-
-  const height = maxY - minY;
-  const width = maxX - minX;
-  if (!(height > 0.05) || !(width > 0.05) || worldVerts.length === 0) return null;
-
-  let meshIdx = 0;
-  for (const mesh of sourceMeshes) {
-    if (!(mesh instanceof Mesh)) continue;
-    const pos = mesh.getVerticesData(VertexBuffer.PositionKind);
-    if (!pos || pos.length < 9) continue;
-    const locals = worldVerts[meshIdx++];
-    const indices = mesh.getIndices();
-    if (!indices || indices.length < 3) continue;
-    const uvs = mesh.getVerticesData(VertexBuffer.UVKind);
-    // Fresh index remap per source mesh (indices are local to each mesh).
-    for (const part of Object.values(parts)) part.map.clear();
-
-    for (let i = 0; i < indices.length; i += 3) {
-      const a = indices[i];
-      const b = indices[i + 1];
-      const c = indices[i + 2];
-      const pa = locals[a];
-      const pb = locals[b];
-      const pc = locals[c];
-      if (!pa || !pb || !pc) continue;
-      const cx = (pa.x + pb.x + pc.x) / 3;
-      const cy = (pa.y + pb.y + pc.y) / 3;
-      const nx = (cx - minX) / width;
-      const ny = (cy - minY) / height;
-      const part = parts[classifyBodyPart(nx, ny)];
-      if (!part.material) part.material = mesh.material;
-
-      const pushVert = (vi: number) => {
-        const existing = part.map.get(vi);
-        if (existing !== undefined) return existing;
-        const p = locals[vi];
-        const idx = part.positions.length / 3;
-        part.positions.push(p.x, p.y, p.z);
-        if (uvs && uvs.length >= (vi + 1) * 2) {
-          part.uvs.push(uvs[vi * 2], uvs[vi * 2 + 1]);
-        }
-        part.map.set(vi, idx);
-        return idx;
-      };
-
-      part.indices.push(pushVert(a), pushVert(b), pushVert(c));
-    }
-  }
-
-  const pivotDefs: Record<BodyPartId, { x: number; y: number }> = {
-    torso: { x: 0, y: 1.18 },
-    head: { x: 0, y: 1.78 },
-    armL: { x: -0.5, y: 1.48 },
-    armR: { x: 0.5, y: 1.48 },
-    legL: { x: -0.18, y: 0.9 },
-    legR: { x: 0.18, y: 0.9 },
-  };
-
-  const rigNodes = {} as Omit<AvatarRig, 'root' | 'visual' | 'collider'>;
-  let built = 0;
-
-  (Object.keys(parts) as BodyPartId[]).forEach((id) => {
-    const pivot = emptyPivot(scene, `${name}-${id}`, visual, pivotDefs[id].y);
-    pivot.position.x = pivotDefs[id].x;
-    rigNodes[id] = pivot;
-
-    const acc = parts[id];
-    if (acc.positions.length < 9 || acc.indices.length < 3) return;
-
-    // Vertex positions are in visual space — convert to pivot-local.
-    for (let i = 0; i < acc.positions.length; i += 3) {
-      acc.positions[i] -= pivotDefs[id].x;
-      acc.positions[i + 1] -= pivotDefs[id].y;
-    }
-
-    const mesh = new Mesh(`${name}-${id}-mesh`, scene);
-    const vd = new VertexData();
-    vd.positions = acc.positions;
-    vd.indices = acc.indices;
-    if (acc.uvs.length === (acc.positions.length / 3) * 2) vd.uvs = acc.uvs;
-    const nrm: number[] = [];
-    VertexData.ComputeNormals(acc.positions, acc.indices, nrm);
-    vd.normals = nrm;
-    vd.applyToMesh(mesh);
-    mesh.material = acc.material;
-    mesh.parent = pivot;
-    mesh.isPickable = false;
-    mesh.checkCollisions = false;
-    built += 1;
-  });
-
-  if (built < 3) {
-    for (const id of Object.keys(rigNodes) as BodyPartId[]) {
-      rigNodes[id].dispose();
-    }
-    return null;
-  }
-
-  for (const mesh of sourceMeshes) {
-    mesh.setEnabled(false);
-    mesh.isVisible = false;
-  }
-
-  return rigNodes;
 }
 
 export class AvatarFactory {
@@ -476,33 +299,18 @@ export class AvatarFactory {
     fitGlbToHumanHeight(model, result.meshes as AbstractMesh[]);
     simplifyGlbMaterials(result.meshes as AbstractMesh[], scene);
 
-    // Unskinned demo GLBs have no bones — split mesh into limb parts so the
-    // same HumanoidAnimator poses (walk / jump / slide) drive the look.
-    const segmented = segmentUnskinnedGlbToRig(scene, result.meshes as AbstractMesh[], visual, name);
-    let torso: TransformNode;
-    let head: TransformNode;
-    let armL: TransformNode;
-    let armR: TransformNode;
-    let legL: TransformNode;
-    let legR: TransformNode;
-    let forceProceduralAnim = false;
-
-    if (segmented) {
-      ({ torso, head, armL, armR, legL, legR } = segmented);
-      forceProceduralAnim = true;
-      model.setEnabled(false);
-    } else {
-      torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
-      head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);
-      armL = emptyPivot(scene, `${name}-arm-l`, visual, 1.48);
-      armL.position.x = -0.5;
-      armR = emptyPivot(scene, `${name}-arm-r`, visual, 1.48);
-      armR.position.x = 0.5;
-      legL = emptyPivot(scene, `${name}-leg-l`, visual, 0.9);
-      legL.position.x = -0.18;
-      legR = emptyPivot(scene, `${name}-leg-r`, visual, 0.9);
-      legR.position.x = 0.18;
-    }
+    // Rigid unskinned GLB: keep as one mesh (no limb split → no body seams).
+    // Empty pivots exist for rig shape; HumanoidAnimator skips limb poses when rigidGlb is set.
+    const torso = emptyPivot(scene, `${name}-torso`, visual, 1.18);
+    const head = emptyPivot(scene, `${name}-head-pivot`, visual, 1.78);
+    const armL = emptyPivot(scene, `${name}-arm-l`, visual, 1.48);
+    armL.position.x = -0.5;
+    const armR = emptyPivot(scene, `${name}-arm-r`, visual, 1.48);
+    armR.position.x = 0.5;
+    const legL = emptyPivot(scene, `${name}-leg-l`, visual, 0.9);
+    legL.position.x = -0.18;
+    const legR = emptyPivot(scene, `${name}-leg-r`, visual, 0.9);
+    legR.position.x = 0.18;
 
     attachNameTag(scene, visual, displayName ?? '', username ?? '', name);
 
@@ -530,15 +338,9 @@ export class AvatarFactory {
     }
 
     root.name = name;
-    const groups = forceProceduralAnim ? [] : ((result.animationGroups ?? []) as AnimationGroup[]);
+    const groups = (result.animationGroups ?? []) as AnimationGroup[];
     const rig: AvatarRig = { root, visual, collider, torso, head, armL, armR, legL, legR };
-    root.metadata = {
-      ...(root.metadata ?? {}),
-      rig,
-      animationGroups: groups,
-      glbModel: model,
-      forceProceduralAnim,
-    };
+    root.metadata = { ...(root.metadata ?? {}), rig, animationGroups: groups, glbModel: model, rigidGlb: true };
     return root;
   }
 

@@ -33,12 +33,17 @@ export class HumanoidAnimator {
 
   update(dt: number, state: LobbyAnimationState, grounded: boolean) {
     const rig = AvatarFactory.getRig(this.root);
-    const forceProcedural = Boolean(this.root.metadata?.forceProceduralAnim);
-    if (this.groups && !forceProcedural) {
+    if (this.groups) {
       this.playClip(state);
       return;
     }
     if (!rig) return;
+
+    // Unskinned rigid GLB: no limb meshes to pose — keep visual stable (no fake arm/leg swing).
+    if (this.root.metadata?.rigidGlb) {
+      rig.visual.position.y = 0;
+      return;
+    }
 
     this.time += dt;
     if (this.slideMode) {
@@ -73,8 +78,16 @@ export class HumanoidAnimator {
       this.clipStepAcc = 0;
       return false;
     }
-    const forceProcedural = Boolean(this.root.metadata?.forceProceduralAnim);
-    if (this.groups && !forceProcedural) {
+    if (this.groups) {
+      this.clipStepAcc += dt;
+      const interval = state === 'run' ? 0.28 : 0.42;
+      if (this.clipStepAcc >= interval) {
+        this.clipStepAcc = 0;
+        return true;
+      }
+      return false;
+    }
+    if (this.root.metadata?.rigidGlb) {
       this.clipStepAcc += dt;
       const interval = state === 'run' ? 0.28 : 0.42;
       if (this.clipStepAcc >= interval) {
