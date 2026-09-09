@@ -136,6 +136,11 @@ export class AvatarFactory {
     /** Procedural sync create, or GLB load when presetKind is glb + glbUrl. */
     static async createAsync(scene, avatar, name = 'avatar', displayName, username, options = {}) {
         const glbUrl = resolveGlbUrl(avatar);
+        console.info('[lobby-sdk] avatar createAsync', {
+            presetKey: avatar.presetKey,
+            presetKind: avatar.presetKind,
+            glbUrl,
+        });
         if (!glbUrl) {
             return AvatarFactory.create(scene, avatar, name, displayName, username, options);
         }

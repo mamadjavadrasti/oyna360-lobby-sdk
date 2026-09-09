@@ -201,6 +201,11 @@ export class AvatarFactory {
     options: { collider?: boolean | 'player' | 'body' } = {},
   ): Promise<TransformNode> {
     const glbUrl = resolveGlbUrl(avatar);
+    console.info('[lobby-sdk] avatar createAsync', {
+      presetKey: avatar.presetKey,
+      presetKind: avatar.presetKind,
+      glbUrl,
+    });
     if (!glbUrl) {
       return AvatarFactory.create(scene, avatar, name, displayName, username, options);
     }
