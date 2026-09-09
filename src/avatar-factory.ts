@@ -385,19 +385,32 @@ export class AvatarFactory {
       importRoot.parent = model;
     }
 
+    let strippedSkin = false;
     for (const mesh of result.meshes) {
       mesh.isPickable = false;
       mesh.checkCollisions = false;
+      // This Tripo rig loads with all bones at the origin in Babylon, so GPU skinning
+      // explodes the mesh. Geometry itself is fine — show bind-pose as a rigid mesh.
+      if (mesh.skeleton) {
+        mesh.skeleton = null;
+        mesh.numBoneInfluencers = 0;
+        strippedSkin = true;
+      }
+    }
+    if (strippedSkin || skeletons.length) {
+      console.warn('[lobby-sdk] GLB skeleton disabled (broken bind pose in Babylon); showing rigid mesh', {
+        glbUrl,
+        skeletons: skeletons.length,
+        bones: skeletons[0]?.bones.length ?? 0,
+      });
     }
 
     fitGlbToHumanHeight(model, result.meshes as AbstractMesh[]);
     simplifyGlbMaterials(result.meshes as AbstractMesh[], scene);
 
-    // Diagnostic: show skinned GLB in bind pose only — no bone rotation / limb posing yet.
-    console.info('[lobby-sdk] GLB loaded (bind pose, no limb anim)', {
+    console.info('[lobby-sdk] GLB loaded (rigid bind pose)', {
       glbUrl,
-      skeletons: skeletons.length,
-      bones: skeletons[0]?.bones.length ?? 0,
+      strippedSkin,
       meshes: result.meshes.map((m) => m.name),
     });
 
