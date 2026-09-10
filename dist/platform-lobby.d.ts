@@ -81,11 +81,20 @@ export declare class PlatformLobby {
     playEmote(emote: LobbyEmoteKind): void;
     /** Live lobby chat. Not saved. Always echoes locally so the sender sees the line. */
     sendChat(text: string): boolean;
+    /**
+     * Ephemeral game data for this lobby room (matchmaking, pad sync, …).
+     * Independent of chat — works when chat is disabled/banned.
+     * Local-echoes so the sender sees the same `data` event as peers.
+     * Prefer namespaced channels: `{gameSlug}.{feature}` (e.g. `fc.pad-room`).
+     */
+    sendData(channel: string, payload: string): boolean;
     attachChat(): this;
     attachVoice(): this;
     getVoiceChat(): LobbyVoiceChat | null;
     getLobbyFeatures(): LobbyFeatureFlags;
     canUseChat(): boolean;
+    /** Game data channel — defaults on when flags are omitted. */
+    canUseData(): boolean;
     canUseVoice(): boolean;
     /** Virtual joystick / on-screen pad. x = strafe, z = forward (-1..1). */
     setMoveStick(x: number, z: number): void;

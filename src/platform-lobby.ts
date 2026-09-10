@@ -1,7 +1,12 @@
 import { MeshBuilder, SceneLoader, Vector3 as BVector3 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import type { SdkInitPayload } from './platform-types';
-import { sanitizeLobbyChat, type LobbyEmoteKind } from './protocol';
+import {
+  sanitizeLobbyChat,
+  sanitizeLobbyDataChannel,
+  sanitizeLobbyDataPayload,
+  type LobbyEmoteKind,
+} from './protocol';
 import { AvatarFactory } from './avatar-factory';
 import { LocalPlayerController } from './local-player-controller';
 import { NetworkClient } from './network-client';
@@ -272,6 +277,10 @@ export class PlatformLobby {
           if (payload.userId === this.init.user.id) return;
           this.emit('chat', payload);
         },
+        onData: (payload) => {
+          if (payload.userId === this.init.user.id) return;
+          this.emit('data', payload);
+        },
         onVoiceState: (peers, friendUserIds) => {
           this.voiceChat?.handleVoiceState(peers, friendUserIds);
         },
@@ -433,6 +442,30 @@ export class PlatformLobby {
     return true;
   }
 
+  /**
+   * Ephemeral game data for this lobby room (matchmaking, pad sync, …).
+   * Independent of chat — works when chat is disabled/banned.
+   * Local-echoes so the sender sees the same `data` event as peers.
+   * Prefer namespaced channels: `{gameSlug}.{feature}` (e.g. `fc.pad-room`).
+   */
+  sendData(channel: string, payload: string): boolean {
+    if (!this.canUseData()) return false;
+    const ch = sanitizeLobbyDataChannel(channel);
+    const body = sanitizeLobbyDataPayload(payload);
+    if (!ch || !body) return false;
+    if (!this.network?.isConnected()) return false;
+    this.emit('data', {
+      userId: this.init.user.id,
+      username: this.init.user.username,
+      displayName: this.init.user.displayName,
+      channel: ch,
+      payload: body,
+      at: Date.now(),
+    });
+    this.network.sendData(ch, body);
+    return true;
+  }
+
   attachChat() {
     if (this.chatDispose) return this;
     this.chatDispose = attachLobbyChatUi(this, this.canvas);
@@ -455,6 +488,11 @@ export class PlatformLobby {
 
   canUseChat() {
     return this.lobbyFeatures.chatEnabled && this.lobbyFeatures.chatAllowed;
+  }
+
+  /** Game data channel — defaults on when flags are omitted. */
+  canUseData() {
+    return this.lobbyFeatures.dataEnabled !== false && this.lobbyFeatures.dataAllowed !== false;
   }
 
   canUseVoice() {

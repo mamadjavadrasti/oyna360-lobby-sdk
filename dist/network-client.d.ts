@@ -27,6 +27,14 @@ export type NetworkClientHandlers = {
         text: string;
         at: number;
     }) => void;
+    onData?: (payload: {
+        userId: string;
+        username?: string;
+        displayName?: string;
+        channel: string;
+        payload: string;
+        at: number;
+    }) => void;
     onVoiceState?: (peers: LobbyVoicePeerState[], friendUserIds: string[]) => void;
     onVoiceJoined?: (peer: LobbyVoicePeerState) => void;
     onVoiceLeft?: (userId: string) => void;
@@ -55,6 +63,7 @@ export declare class NetworkClient {
     sendMove(payload: Omit<LobbyMoveMessage, 'type' | 'seq'>): void;
     sendEmote(emote: LobbyEmoteKind): void;
     sendChat(text: string): void;
+    sendData(channel: string, payload: string): void;
     sendVoiceJoin(mode: LobbyVoiceMode): void;
     sendVoiceLeave(): void;
     sendVoiceMute(muted: boolean): void;

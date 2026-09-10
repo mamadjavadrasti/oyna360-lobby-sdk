@@ -76,6 +76,16 @@ export interface LobbyChatMessage {
   text: string;
 }
 
+/**
+ * Game/app data bus for the lobby room (matchmaking, pad rooms, sync, …).
+ * Not chat — never shown in chat UI. Prefer namespaced channels: `{game}.{feature}`.
+ */
+export interface LobbyDataMessage {
+  type: 'lobby:data';
+  channel: string;
+  payload: string;
+}
+
 export type LobbyVoiceMode = 'friends' | 'all';
 
 export interface RtcSessionDescription {
@@ -124,11 +134,37 @@ export interface LobbyVoiceIceMessage {
 
 export const LOBBY_CHAT_MAX_LEN = 140;
 
+/** Max payload bytes for lobby:data (game control / sync). Independent of chat. */
+export const LOBBY_DATA_MAX_LEN = 512;
+export const LOBBY_DATA_CHANNEL_MAX_LEN = 64;
+const LOBBY_DATA_CHANNEL_RE = /^[a-zA-Z0-9._-]+$/;
+
 export function sanitizeLobbyChat(text: unknown): string | null {
   if (typeof text !== 'string') return null;
   const cleaned = text.replace(/[\u0000-\u001F\u007F]/g, '').replace(/\s+/g, ' ').trim();
   if (!cleaned) return null;
   return cleaned.slice(0, LOBBY_CHAT_MAX_LEN);
+}
+
+/** Validate data channel id. Does not apply chat sanitization. */
+export function sanitizeLobbyDataChannel(channel: unknown): string | null {
+  if (typeof channel !== 'string') return null;
+  const cleaned = channel.trim();
+  if (!cleaned || cleaned.length > LOBBY_DATA_CHANNEL_MAX_LEN) return null;
+  if (!LOBBY_DATA_CHANNEL_RE.test(cleaned)) return null;
+  return cleaned;
+}
+
+/**
+ * Validate data payload. Strips only dangerous control chars; preserves framing spaces.
+ * Does not trim or slice like chat.
+ */
+export function sanitizeLobbyDataPayload(payload: unknown): string | null {
+  if (typeof payload !== 'string') return null;
+  if (!payload || payload.length > LOBBY_DATA_MAX_LEN) return null;
+  const cleaned = payload.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+  if (!cleaned || cleaned.length > LOBBY_DATA_MAX_LEN) return null;
+  return cleaned;
 }
 
 export type LobbyClientMessage =
@@ -138,6 +174,7 @@ export type LobbyClientMessage =
   | LobbyLeaveMessage
   | LobbyPingMessage
   | LobbyChatMessage
+  | LobbyDataMessage
   | LobbyVoiceJoinMessage
   | LobbyVoiceLeaveMessage
   | LobbyVoiceMuteMessage
@@ -157,6 +194,12 @@ export interface LobbyFeatureFlags {
   voiceEnabled: boolean;
   chatAllowed: boolean;
   voiceAllowed: boolean;
+  /**
+   * Game data channel (`lobby:data`). Omitted / undefined ⇒ enabled.
+   * Independent of chat — matchmaking must work when chat is banned/disabled.
+   */
+  dataEnabled?: boolean;
+  dataAllowed?: boolean;
 }
 
 export interface LobbyWelcomeMessage {
@@ -222,6 +265,16 @@ export interface LobbyChatBroadcastMessage {
   at: number;
 }
 
+export interface LobbyDataBroadcastMessage {
+  type: 'lobby:data';
+  userId: string;
+  username?: string;
+  displayName?: string;
+  channel: string;
+  payload: string;
+  at: number;
+}
+
 export interface LobbyVoiceStateMessage {
   type: 'lobby:voice:state';
   peers: LobbyVoicePeerState[];
@@ -270,6 +323,7 @@ export type LobbyServerMessage =
   | LobbyPlayerMovedMessage
   | LobbyPlayerEmoteMessage
   | LobbyChatBroadcastMessage
+  | LobbyDataBroadcastMessage
   | LobbyVoiceStateMessage
   | LobbyVoiceJoinedMessage
   | LobbyVoiceLeftMessage
@@ -290,6 +344,7 @@ export function parseLobbyClientMessage(data: unknown): LobbyClientMessage | nul
     case 'lobby:leave':
     case 'lobby:ping':
     case 'lobby:chat':
+    case 'lobby:data':
     case 'lobby:voice:join':
     case 'lobby:voice:leave':
     case 'lobby:voice:mute':

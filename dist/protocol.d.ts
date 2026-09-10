@@ -61,6 +61,15 @@ export interface LobbyChatMessage {
     type: 'lobby:chat';
     text: string;
 }
+/**
+ * Game/app data bus for the lobby room (matchmaking, pad rooms, sync, …).
+ * Not chat — never shown in chat UI. Prefer namespaced channels: `{game}.{feature}`.
+ */
+export interface LobbyDataMessage {
+    type: 'lobby:data';
+    channel: string;
+    payload: string;
+}
 export type LobbyVoiceMode = 'friends' | 'all';
 export interface RtcSessionDescription {
     type?: 'offer' | 'answer' | 'pranswer' | 'rollback';
@@ -99,8 +108,18 @@ export interface LobbyVoiceIceMessage {
     candidate: RtcIceCandidate;
 }
 export declare const LOBBY_CHAT_MAX_LEN = 140;
+/** Max payload bytes for lobby:data (game control / sync). Independent of chat. */
+export declare const LOBBY_DATA_MAX_LEN = 512;
+export declare const LOBBY_DATA_CHANNEL_MAX_LEN = 64;
 export declare function sanitizeLobbyChat(text: unknown): string | null;
-export type LobbyClientMessage = LobbyJoinMessage | LobbyMoveMessage | LobbyEmoteMessage | LobbyLeaveMessage | LobbyPingMessage | LobbyChatMessage | LobbyVoiceJoinMessage | LobbyVoiceLeaveMessage | LobbyVoiceMuteMessage | LobbyVoiceOfferMessage | LobbyVoiceAnswerMessage | LobbyVoiceIceMessage;
+/** Validate data channel id. Does not apply chat sanitization. */
+export declare function sanitizeLobbyDataChannel(channel: unknown): string | null;
+/**
+ * Validate data payload. Strips only dangerous control chars; preserves framing spaces.
+ * Does not trim or slice like chat.
+ */
+export declare function sanitizeLobbyDataPayload(payload: unknown): string | null;
+export type LobbyClientMessage = LobbyJoinMessage | LobbyMoveMessage | LobbyEmoteMessage | LobbyLeaveMessage | LobbyPingMessage | LobbyChatMessage | LobbyDataMessage | LobbyVoiceJoinMessage | LobbyVoiceLeaveMessage | LobbyVoiceMuteMessage | LobbyVoiceOfferMessage | LobbyVoiceAnswerMessage | LobbyVoiceIceMessage;
 export interface LobbyVoicePeerState {
     userId: string;
     username?: string;
@@ -112,6 +131,12 @@ export interface LobbyFeatureFlags {
     voiceEnabled: boolean;
     chatAllowed: boolean;
     voiceAllowed: boolean;
+    /**
+     * Game data channel (`lobby:data`). Omitted / undefined ⇒ enabled.
+     * Independent of chat — matchmaking must work when chat is banned/disabled.
+     */
+    dataEnabled?: boolean;
+    dataAllowed?: boolean;
 }
 export interface LobbyWelcomeMessage {
     type: 'lobby:welcome';
@@ -167,6 +192,15 @@ export interface LobbyChatBroadcastMessage {
     text: string;
     at: number;
 }
+export interface LobbyDataBroadcastMessage {
+    type: 'lobby:data';
+    userId: string;
+    username?: string;
+    displayName?: string;
+    channel: string;
+    payload: string;
+    at: number;
+}
 export interface LobbyVoiceStateMessage {
     type: 'lobby:voice:state';
     peers: LobbyVoicePeerState[];
@@ -200,7 +234,7 @@ export interface LobbyVoiceIceBroadcastMessage {
     fromUserId: string;
     candidate: RtcIceCandidate;
 }
-export type LobbyServerMessage = LobbyWelcomeMessage | LobbyStateMessage | LobbyPlayerJoinedMessage | LobbyPlayerLeftMessage | LobbyPlayerMovedMessage | LobbyPlayerEmoteMessage | LobbyChatBroadcastMessage | LobbyVoiceStateMessage | LobbyVoiceJoinedMessage | LobbyVoiceLeftMessage | LobbyVoiceMuteBroadcastMessage | LobbyVoiceOfferBroadcastMessage | LobbyVoiceAnswerBroadcastMessage | LobbyVoiceIceBroadcastMessage | LobbyErrorMessage | LobbyPongMessage;
+export type LobbyServerMessage = LobbyWelcomeMessage | LobbyStateMessage | LobbyPlayerJoinedMessage | LobbyPlayerLeftMessage | LobbyPlayerMovedMessage | LobbyPlayerEmoteMessage | LobbyChatBroadcastMessage | LobbyDataBroadcastMessage | LobbyVoiceStateMessage | LobbyVoiceJoinedMessage | LobbyVoiceLeftMessage | LobbyVoiceMuteBroadcastMessage | LobbyVoiceOfferBroadcastMessage | LobbyVoiceAnswerBroadcastMessage | LobbyVoiceIceBroadcastMessage | LobbyErrorMessage | LobbyPongMessage;
 export declare function parseLobbyClientMessage(data: unknown): LobbyClientMessage | null;
 export declare function gameRoomId(gameSlug: string, instance?: number): string;
 export declare const GLOBAL_AVATAR_ROOM_ID = "global:avatars";

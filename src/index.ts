@@ -69,6 +69,10 @@ export {
   GLOBAL_AVATAR_ROOM_ID,
   gameRoomId,
   LOBBY_CHAT_MAX_LEN,
+  LOBBY_DATA_MAX_LEN,
+  LOBBY_DATA_CHANNEL_MAX_LEN,
   sanitizeLobbyChat,
+  sanitizeLobbyDataChannel,
+  sanitizeLobbyDataPayload,
 } from './protocol';
 export type { LobbyVoiceMode, LobbyVoicePeerState, LobbyFeatureFlags } from './protocol';

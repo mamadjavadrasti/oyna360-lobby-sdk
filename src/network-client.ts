@@ -30,6 +30,14 @@ export type NetworkClientHandlers = {
   }) => void;
   onPlayerEmote?: (userId: string, emote: LobbyEmoteKind) => void;
   onChat?: (payload: { userId: string; username?: string; displayName: string; text: string; at: number }) => void;
+  onData?: (payload: {
+    userId: string;
+    username?: string;
+    displayName?: string;
+    channel: string;
+    payload: string;
+    at: number;
+  }) => void;
   onVoiceState?: (peers: LobbyVoicePeerState[], friendUserIds: string[]) => void;
   onVoiceJoined?: (peer: LobbyVoicePeerState) => void;
   onVoiceLeft?: (userId: string) => void;
@@ -121,6 +129,9 @@ export class NetworkClient {
       case 'lobby:chat':
         this.handlers.onChat?.(msg);
         break;
+      case 'lobby:data':
+        this.handlers.onData?.(msg);
+        break;
       case 'lobby:voice:state':
         this.handlers.onVoiceState?.(msg.peers, msg.friendUserIds);
         break;
@@ -169,6 +180,11 @@ export class NetworkClient {
   sendChat(text: string) {
     if (!this.socket?.connected) return;
     this.socket.emit('message', { type: 'lobby:chat', text } satisfies LobbyClientMessage);
+  }
+
+  sendData(channel: string, payload: string) {
+    if (!this.socket?.connected) return;
+    this.socket.emit('message', { type: 'lobby:data', channel, payload } satisfies LobbyClientMessage);
   }
 
   sendVoiceJoin(mode: LobbyVoiceMode) {

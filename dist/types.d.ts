@@ -120,6 +120,18 @@ export type LobbyEventMap = {
         text: string;
         at: number;
     };
+    /**
+     * Ephemeral game data bus (`lobby:data`). Never shown in chat UI.
+     * Filter by `channel` (e.g. `fc.pad-room`, `mygame.queue`).
+     */
+    data: {
+        userId: string;
+        username?: string;
+        displayName?: string;
+        channel: string;
+        payload: string;
+        at: number;
+    };
 };
 export type LobbyEventName = keyof LobbyEventMap;
 //# sourceMappingURL=types.d.ts.map

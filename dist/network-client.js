@@ -71,6 +71,9 @@ export class NetworkClient {
             case 'lobby:chat':
                 this.handlers.onChat?.(msg);
                 break;
+            case 'lobby:data':
+                this.handlers.onData?.(msg);
+                break;
             case 'lobby:voice:state':
                 this.handlers.onVoiceState?.(msg.peers, msg.friendUserIds);
                 break;
@@ -119,6 +122,11 @@ export class NetworkClient {
         if (!this.socket?.connected)
             return;
         this.socket.emit('message', { type: 'lobby:chat', text });
+    }
+    sendData(channel, payload) {
+        if (!this.socket?.connected)
+            return;
+        this.socket.emit('message', { type: 'lobby:data', channel, payload });
     }
     sendVoiceJoin(mode) {
         if (!this.socket?.connected)
