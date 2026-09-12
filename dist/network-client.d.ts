@@ -19,6 +19,13 @@ export type NetworkClientHandlers = {
         seq: number;
         serverTime: number;
     }) => void;
+    onPlayersMoved?: (moves: Array<{
+        userId: string;
+        position?: LobbyPlayerState['position'];
+        rotationY?: number;
+        animation?: LobbyPlayerState['animation'];
+        seq: number;
+    }>, serverTime: number) => void;
     onPlayerEmote?: (userId: string, emote: LobbyEmoteKind) => void;
     onChat?: (payload: {
         userId: string;
@@ -53,11 +60,14 @@ export declare class NetworkClient {
     private readonly roomId;
     private readonly sessionToken;
     private readonly handlers;
+    private readonly connectOptions;
     private socket;
     private moveSeq;
     private reconnectAttempts;
     private readonly maxReconnectAttempts;
-    constructor(wsUrl: string, roomId: string, sessionToken: string, handlers?: NetworkClientHandlers);
+    constructor(wsUrl: string, roomId: string, sessionToken: string, handlers?: NetworkClientHandlers, connectOptions?: {
+        strictRoom?: boolean;
+    });
     connect(): void;
     private handleServerMessage;
     sendMove(payload: Omit<LobbyMoveMessage, 'type' | 'seq'>): void;

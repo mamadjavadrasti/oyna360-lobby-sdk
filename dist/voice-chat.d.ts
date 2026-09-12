@@ -1,4 +1,11 @@
 import type { LobbyVoiceMode, LobbyVoicePeerState, RtcIceCandidate, RtcSessionDescription } from './protocol';
+/** Default mesh cap — keep in sync with server LOBBY_VOICE_PEER_CAP (roadmap 3.4). */
+export declare const DEFAULT_VOICE_PEER_CAP = 6;
+export type VoicePosition = {
+    x: number;
+    y: number;
+    z: number;
+};
 export type VoiceSignaling = {
     sendJoin(mode: LobbyVoiceMode): void;
     sendLeave(): void;
@@ -20,6 +27,8 @@ export declare class LobbyVoiceChat {
     private readonly peers;
     private readonly remoteAudio;
     private readonly voicePeers;
+    /** Peers we created an offer toward (vs inbound-only). */
+    private readonly offerInitiated;
     private active;
     private mode;
     private micMuted;
@@ -27,10 +36,20 @@ export declare class LobbyVoiceChat {
     private friendIds;
     private readonly listeners;
     private disposed;
+    private peerCap;
+    private getPosition;
+    private lastMeshRefreshMs;
     constructor(signaling: VoiceSignaling);
     onStateChange(listener: VoiceChatListener): () => boolean;
     setContext(selfUserId: string, friendUserIds: string[]): void;
+    /** Optional world positions for nearest-N mesh selection. */
+    setPositionProvider(fn: (userId: string) => VoicePosition | null | undefined): void;
+    setPeerCap(cap: number): void;
     getState(): VoiceChatState;
+    /**
+     * Re-evaluate nearest peers (e.g. after movement). Throttled to ~2Hz by default.
+     */
+    refreshMesh(force?: boolean): void;
     enable(mode: LobbyVoiceMode): Promise<void>;
     disable(): Promise<void>;
     setMode(mode: LobbyVoiceMode): Promise<void>;
@@ -46,6 +65,7 @@ export declare class LobbyVoiceChat {
     dispose(): void;
     private syncPeerConnections;
     private canConnectTo;
+    private nearestEligiblePeerIds;
     private createOffer;
     private ensurePeer;
     private closePeer;

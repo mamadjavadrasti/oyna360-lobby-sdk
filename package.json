@@ -28,11 +28,14 @@
     "LICENSE"
   ],
   "scripts": {
+    "sync:protocol": "node ../../scripts/sync-lobby-protocol.mjs",
+    "prebuild": "node ../../scripts/sync-lobby-protocol.mjs",
     "build": "tsc",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
-    "lint": "echo \"No lint configured for @platform/lobby-sdk\""
+    "lint": "echo \"No lint configured for @platform/lobby-sdk\"",
+    "check:protocol": "node ../../scripts/sync-lobby-protocol.mjs --check"
   },
   "dependencies": {
     "@babylonjs/loaders": "^7.44.0",

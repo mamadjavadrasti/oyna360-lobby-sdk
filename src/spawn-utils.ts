@@ -1,33 +1,13 @@
-import type { LobbySpawnConfig, Vector3 } from './types';
+import {
+  DEFAULT_LOBBY_SPAWN,
+  lobbySpawnPose,
+  type LobbySpawnLayout,
+  type LobbySpawnPose,
+} from './lobby-spawn';
+import type { LobbySpawnConfig } from './types';
 
-export interface LobbySpawnLayout {
-  center?: Vector3;
-  radius?: number;
-  slots?: number;
-}
-
-export const DEFAULT_LOBBY_SPAWN: Required<LobbySpawnLayout> = {
-  center: { x: 0, y: 0, z: 4 },
-  radius: 3.25,
-  slots: 16,
-};
-
-export interface LobbySpawnPose {
-  position: Vector3;
-  rotationY: number;
-}
-
-export function lobbySpawnPose(slotIndex: number, layout: LobbySpawnLayout = {}): LobbySpawnPose {
-  const { center, radius, slots } = { ...DEFAULT_LOBBY_SPAWN, ...layout };
-  const slot = ((slotIndex % slots) + slots) % slots;
-  const angle = (slot / slots) * Math.PI * 2;
-  const x = center.x + Math.sin(angle) * radius;
-  const z = center.z + Math.cos(angle) * radius;
-  return {
-    position: { x, y: center.y, z },
-    rotationY: Math.atan2(center.x - x, center.z - z),
-  };
-}
+export { DEFAULT_LOBBY_SPAWN, lobbySpawnPose };
+export type { LobbySpawnLayout, LobbySpawnPose };
 
 export function spawnLayoutFromConfig(config: LobbySpawnConfig = {}): LobbySpawnLayout {
   const center = config.spawnPoint ?? config.spawnPoints?.[0] ?? DEFAULT_LOBBY_SPAWN.center;

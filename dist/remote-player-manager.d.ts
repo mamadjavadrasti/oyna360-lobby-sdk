@@ -10,9 +10,9 @@ export declare class RemotePlayerManager {
     private spawnRemote;
     applyMove(payload: {
         userId: string;
-        position: LobbyPlayerState['position'];
-        rotationY: number;
-        animation: LobbyAnimationState;
+        position?: LobbyPlayerState['position'];
+        rotationY?: number;
+        animation?: LobbyAnimationState;
     }): void;
     applyEmote(userId: string, emote: LobbyEmoteKind): void;
     remove(userId: string): void;
@@ -21,6 +21,7 @@ export declare class RemotePlayerManager {
         username: string;
     } | null;
     update(dt: number): void;
+    getPosition(userId: string): LobbyPlayerState['position'] | null;
     list(): {
         userId: string;
         displayName: string;

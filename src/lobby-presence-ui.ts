@@ -1,11 +1,16 @@
 import type { PlatformLobby } from './platform-lobby';
 import { LOBBY_UI_FONT } from './lobby-font';
 import { formatPlayerHandle } from './player-label';
+import { resolveLobbyUiMessages, type LobbyUiMessages } from './lobby-ui-i18n';
 
 const MAX_ITEMS = 5;
 const ITEM_MS = 4500;
 
-export function attachLobbyPresenceUi(lobby: PlatformLobby): () => void {
+export function attachLobbyPresenceUi(
+  lobby: PlatformLobby,
+  messages?: Partial<LobbyUiMessages>,
+): () => void {
+  const copy = resolveLobbyUiMessages(lobby.getUiLocale(), messages);
   const root = ensurePresenceRoot(lobby);
   const timers = new Set<number>();
 
@@ -34,11 +39,11 @@ export function attachLobbyPresenceUi(lobby: PlatformLobby): () => void {
   };
 
   const offJoin = lobby.on('playerJoined', ({ displayName, username }) => {
-    push(`${formatPlayerHandle(displayName, username)} وارد لابی شد`, 'join');
+    push(`${formatPlayerHandle(displayName, username)} ${copy.presenceJoined}`, 'join');
   });
 
   const offLeave = lobby.on('playerLeft', ({ displayName, username }) => {
-    push(`${formatPlayerHandle(displayName, username)} از لابی خارج شد`, 'leave');
+    push(`${formatPlayerHandle(displayName, username)} ${copy.presenceLeft}`, 'leave');
   });
 
   return () => {

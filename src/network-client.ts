@@ -11,6 +11,7 @@ import type {
   RtcIceCandidate,
   RtcSessionDescription,
 } from './protocol';
+import { LOBBY_PROTOCOL_VERSION } from './protocol';
 
 export type NetworkClientHandlers = {
   onWelcome?: (
@@ -28,6 +29,16 @@ export type NetworkClientHandlers = {
     seq: number;
     serverTime: number;
   }) => void;
+  onPlayersMoved?: (
+    moves: Array<{
+      userId: string;
+      position?: LobbyPlayerState['position'];
+      rotationY?: number;
+      animation?: LobbyPlayerState['animation'];
+      seq: number;
+    }>,
+    serverTime: number,
+  ) => void;
   onPlayerEmote?: (userId: string, emote: LobbyEmoteKind) => void;
   onChat?: (payload: { userId: string; username?: string; displayName: string; text: string; at: number }) => void;
   onData?: (payload: {
@@ -63,6 +74,7 @@ export class NetworkClient {
     private readonly roomId: string,
     private readonly sessionToken: string,
     private readonly handlers: NetworkClientHandlers = {},
+    private readonly connectOptions: { strictRoom?: boolean } = {},
   ) {}
 
   connect() {
@@ -73,6 +85,8 @@ export class NetworkClient {
       query: {
         sessionToken: this.sessionToken,
         roomId: this.roomId,
+        protocolVersion: LOBBY_PROTOCOL_VERSION,
+        ...(this.connectOptions.strictRoom ? { strictRoom: '1' } : {}),
       },
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
@@ -122,6 +136,9 @@ export class NetworkClient {
         break;
       case 'lobby:player:moved':
         this.handlers.onPlayerMoved?.(msg);
+        break;
+      case 'lobby:players:moved':
+        this.handlers.onPlayersMoved?.(msg.moves, msg.serverTime);
         break;
       case 'lobby:player:emote':
         this.handlers.onPlayerEmote?.(msg.userId, msg.emote);

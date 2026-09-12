@@ -41,6 +41,8 @@ export { attachLobbyPresenceUi } from './lobby-presence-ui';
 export { attachLobbyVoiceUi } from './lobby-voice-ui';
 export { attachLobbyConnectionUi } from './lobby-connection-ui';
 export { attachLobbyOrientationUi } from './lobby-orientation-ui';
+export { resolveLobbyUiMessages } from './lobby-ui-i18n';
+export type { LobbyUiLocale, LobbyUiMessages } from './lobby-ui-i18n';
 export { LobbyVoiceChat } from './voice-chat';
 export type { VoiceChatState, VoiceSignaling } from './voice-chat';
 export { formatPlayerLabel, formatPlayerLabelParts, formatPlayerHandle, formatAvatarTagLabel } from './player-label';

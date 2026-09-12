@@ -1,8 +1,10 @@
 import { LOBBY_UI_FONT } from './lobby-font';
 import { formatPlayerHandle } from './player-label';
+import { resolveLobbyUiMessages } from './lobby-ui-i18n';
 const MAX_ITEMS = 5;
 const ITEM_MS = 4500;
-export function attachLobbyPresenceUi(lobby) {
+export function attachLobbyPresenceUi(lobby, messages) {
+    const copy = resolveLobbyUiMessages(lobby.getUiLocale(), messages);
     const root = ensurePresenceRoot(lobby);
     const timers = new Set();
     const push = (text, kind) => {
@@ -30,10 +32,10 @@ export function attachLobbyPresenceUi(lobby) {
         timers.add(timer);
     };
     const offJoin = lobby.on('playerJoined', ({ displayName, username }) => {
-        push(`${formatPlayerHandle(displayName, username)} وارد لابی شد`, 'join');
+        push(`${formatPlayerHandle(displayName, username)} ${copy.presenceJoined}`, 'join');
     });
     const offLeave = lobby.on('playerLeft', ({ displayName, username }) => {
-        push(`${formatPlayerHandle(displayName, username)} از لابی خارج شد`, 'leave');
+        push(`${formatPlayerHandle(displayName, username)} ${copy.presenceLeft}`, 'leave');
     });
     return () => {
         for (const timer of timers)

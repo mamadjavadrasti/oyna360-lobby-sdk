@@ -1,10 +1,14 @@
 import { LOBBY_UI_FONT, ensureLobbyPersianFont } from './lobby-font';
+import { resolveLobbyUiMessages, type LobbyUiLocale, type LobbyUiMessages } from './lobby-ui-i18n';
 
 /**
- * On mobile portrait, shows a full-screen prompt: "گوشیت رو افقی بگیر".
+ * On mobile portrait, shows a full-screen landscape prompt.
  * Auto-hides when the device goes landscape or on desktop.
  */
-export function attachLobbyOrientationUi(): () => void {
+export function attachLobbyOrientationUi(options?: {
+  locale?: LobbyUiLocale;
+  messages?: Partial<LobbyUiMessages>;
+}): () => void {
   if (typeof window === 'undefined') return () => {};
 
   const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -13,9 +17,11 @@ export function attachLobbyOrientationUi(): () => void {
   if (!isMobile) return () => {};
 
   void ensureLobbyPersianFont();
+  const copy = resolveLobbyUiMessages(options?.locale ?? 'fa', options?.messages);
 
   const overlay = document.createElement('div');
   overlay.id = 'oyna-lobby-orientation-overlay';
+  const locale = options?.locale ?? 'fa';
   overlay.style.cssText = [
     'display:none',
     'position:fixed',
@@ -24,7 +30,7 @@ export function attachLobbyOrientationUi(): () => void {
     'background:rgba(0,0,0,.88)',
     'color:#fff',
     `font:700 18px/1.6 ${LOBBY_UI_FONT}`,
-    'direction:rtl',
+    locale === 'en' ? 'direction:ltr' : 'direction:rtl',
     'text-align:center',
     'place-items:center',
   ].join(';');
@@ -37,14 +43,10 @@ export function attachLobbyOrientationUi(): () => void {
   icon.style.cssText = 'font-size:48px;margin-bottom:16px;animation:oyna-rotate-phone 1.2s ease-in-out infinite alternate';
 
   const text = document.createElement('p');
-  text.textContent = 'گوشیت رو افقی بگیر';
+  text.textContent = copy.orientationHint;
   text.style.cssText = 'margin:0;font-size:18px';
 
-  const hint = document.createElement('p');
-  hint.textContent = 'لابی برای حالت افقی طراحی شده';
-  hint.style.cssText = 'margin:8px 0 0;font-size:13px;opacity:.6';
-
-  box.append(icon, text, hint);
+  box.append(icon, text);
   overlay.append(box);
   document.body.append(overlay);
 

@@ -30,6 +30,7 @@ const DEFAULT_LOBBY_FEATURES = {
 };
 export class PlatformLobby {
     canvas;
+    strictRoom;
     init;
     config;
     roomId;
@@ -57,8 +58,9 @@ export class PlatformLobby {
     voiceChat = null;
     lobbyFeatures = { ...DEFAULT_LOBBY_FEATURES };
     resizeHandler = () => this.sceneManager?.resize();
-    constructor(init, canvas, roomId, wsUrl, config = {}) {
+    constructor(init, canvas, roomId, wsUrl, config = {}, strictRoom = false) {
         this.canvas = canvas;
+        this.strictRoom = strictRoom;
         this.init = init;
         this.roomId = roomId;
         this.wsUrl = wsUrl;
@@ -71,7 +73,8 @@ export class PlatformLobby {
         const init = PlatformBridge.fromInit(options.platformInit);
         const roomId = options.roomId ?? init.lobby?.roomId ?? `game:${init.game.slug}`;
         const wsUrl = options.wsUrl ?? init.lobby?.wsUrl ?? 'http://localhost:3001/lobby';
-        const lobby = new PlatformLobby(init, options.canvas, roomId, wsUrl, options.config ?? {});
+        const strictRoom = options.strictRoom ?? init.lobby?.strictRoom ?? false;
+        const lobby = new PlatformLobby(init, options.canvas, roomId, wsUrl, options.config ?? {}, strictRoom);
         await lobby.bootstrap();
         return lobby;
     }
@@ -80,6 +83,7 @@ export class PlatformLobby {
         return PlatformLobby.create({
             canvas,
             roomId: init.lobby?.roomId ?? `game:${init.game.slug}`,
+            strictRoom: init.lobby?.strictRoom,
             platformInit: init,
             config,
             wsUrl: init.lobby?.wsUrl,
@@ -142,23 +146,30 @@ export class PlatformLobby {
                     rotationY: state.rotationY,
                     animation: state.animation,
                 });
+                this.voiceChat?.refreshMesh();
             }
             this.remotePlayers.update(dt);
         });
         this.emit('ready', undefined);
         this.ready = true;
-        if (this.config.enableMultiplayer !== false) {
-            this.presenceDispose = attachLobbyPresenceUi(this);
+        const uiMessages = this.config.uiMessages;
+        if (this.config.enableMultiplayer !== false && this.config.enablePresenceUi !== false) {
+            this.presenceDispose = attachLobbyPresenceUi(this, uiMessages);
         }
         if (this.config.enableChat !== false)
             this.attachChat();
         if (this.config.enableVoice !== false && this.config.enableMultiplayer !== false) {
             this.attachVoice();
         }
-        if (this.config.enableMultiplayer !== false) {
-            this.connectionDispose = attachLobbyConnectionUi(this);
+        if (this.config.enableMultiplayer !== false && this.config.enableConnectionUi !== false) {
+            this.connectionDispose = attachLobbyConnectionUi(this, uiMessages);
         }
-        this.orientationDispose = attachLobbyOrientationUi();
+        if (this.config.enableOrientationUi !== false) {
+            this.orientationDispose = attachLobbyOrientationUi({
+                locale: this.config.locale,
+                messages: uiMessages,
+            });
+        }
         for (const plugin of this.plugins) {
             void plugin.setup(this);
         }
@@ -173,6 +184,12 @@ export class PlatformLobby {
             sendIce: (toUserId, candidate) => this.network?.sendVoiceIce(toUserId, candidate),
         });
         this.voiceChat.setContext(this.init.user.id, []);
+        this.voiceChat.setPositionProvider((userId) => {
+            if (userId === this.init.user.id) {
+                return this.localController.getState().position;
+            }
+            return this.remotePlayers.getPosition(userId);
+        });
         this.network = new NetworkClient(this.wsUrl, this.roomId, this.init.session.token, {
             onWelcome: (self, players, meta) => {
                 this.localController.teleportTo(self.position, self.rotationY);
@@ -205,6 +222,13 @@ export class PlatformLobby {
             },
             onPlayerMoved: (payload) => {
                 this.remotePlayers.applyMove(payload);
+            },
+            onPlayersMoved: (moves) => {
+                for (const payload of moves) {
+                    if (payload.userId === this.init.user.id)
+                        continue;
+                    this.remotePlayers.applyMove(payload);
+                }
             },
             onPlayerEmote: (userId, emote) => {
                 this.remotePlayers.applyEmote(userId, emote);
@@ -252,7 +276,7 @@ export class PlatformLobby {
             onReconnectFailed: () => {
                 this.emit('reconnectFailed', undefined);
             },
-        });
+        }, { strictRoom: this.strictRoom });
         this.network.connect();
     }
     on(event, handler) {
@@ -474,6 +498,9 @@ export class PlatformLobby {
     }
     getScene() {
         return this.sceneManager.scene;
+    }
+    getUiLocale() {
+        return this.config.locale === 'en' ? 'en' : 'fa';
     }
     getEngine() {
         return this.sceneManager.engine;

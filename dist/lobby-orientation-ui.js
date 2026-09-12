@@ -1,17 +1,20 @@
 import { LOBBY_UI_FONT, ensureLobbyPersianFont } from './lobby-font';
+import { resolveLobbyUiMessages } from './lobby-ui-i18n';
 /**
- * On mobile portrait, shows a full-screen prompt: "گوشیت رو افقی بگیر".
+ * On mobile portrait, shows a full-screen landscape prompt.
  * Auto-hides when the device goes landscape or on desktop.
  */
-export function attachLobbyOrientationUi() {
+export function attachLobbyOrientationUi(options) {
     if (typeof window === 'undefined')
         return () => { };
     const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (!isMobile)
         return () => { };
     void ensureLobbyPersianFont();
+    const copy = resolveLobbyUiMessages(options?.locale ?? 'fa', options?.messages);
     const overlay = document.createElement('div');
     overlay.id = 'oyna-lobby-orientation-overlay';
+    const locale = options?.locale ?? 'fa';
     overlay.style.cssText = [
         'display:none',
         'position:fixed',
@@ -20,7 +23,7 @@ export function attachLobbyOrientationUi() {
         'background:rgba(0,0,0,.88)',
         'color:#fff',
         `font:700 18px/1.6 ${LOBBY_UI_FONT}`,
-        'direction:rtl',
+        locale === 'en' ? 'direction:ltr' : 'direction:rtl',
         'text-align:center',
         'place-items:center',
     ].join(';');
@@ -30,12 +33,9 @@ export function attachLobbyOrientationUi() {
     icon.textContent = '📱';
     icon.style.cssText = 'font-size:48px;margin-bottom:16px;animation:oyna-rotate-phone 1.2s ease-in-out infinite alternate';
     const text = document.createElement('p');
-    text.textContent = 'گوشیت رو افقی بگیر';
+    text.textContent = copy.orientationHint;
     text.style.cssText = 'margin:0;font-size:18px';
-    const hint = document.createElement('p');
-    hint.textContent = 'لابی برای حالت افقی طراحی شده';
-    hint.style.cssText = 'margin:8px 0 0;font-size:13px;opacity:.6';
-    box.append(icon, text, hint);
+    box.append(icon, text);
     overlay.append(box);
     document.body.append(overlay);
     // CSS animation for rotating phone icon

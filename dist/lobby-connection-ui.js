@@ -1,10 +1,12 @@
 import { LOBBY_UI_FONT, ensureLobbyPersianFont } from './lobby-font';
+import { resolveLobbyUiMessages } from './lobby-ui-i18n';
 /**
  * Full-screen connection status overlay.
  * Shows when disconnected / reconnecting / reconnect failed.
  */
-export function attachLobbyConnectionUi(lobby) {
+export function attachLobbyConnectionUi(lobby, messages) {
     void ensureLobbyPersianFont();
+    const copy = resolveLobbyUiMessages(lobby.getUiLocale(), messages);
     const overlay = document.createElement('div');
     overlay.id = 'oyna-lobby-connection-overlay';
     overlay.style.cssText = [
@@ -43,14 +45,14 @@ export function attachLobbyConnectionUi(lobby) {
     const offDisconnected = lobby.on('disconnected', () => {
         if (failed)
             return;
-        show('اتصال قطع شد', 'در حال تلاش مجدد…');
+        show(copy.connectionLost, copy.connectionReconnecting);
     });
     const offReconnecting = lobby.on('reconnecting', ({ attempt }) => {
-        show('اتصال قطع شد', `تلاش مجدد ${attempt}…`);
+        show(copy.connectionLost, `${copy.connectionRetry} ${attempt}…`);
     });
     const offReconnectFailed = lobby.on('reconnectFailed', () => {
         failed = true;
-        show('اتصال برقرار نشد', 'لطفاً اتصال اینترنت خود را بررسی کنید');
+        show(copy.connectionLost, copy.connectionRetry);
     });
     const offConnected = lobby.on('connected', () => {
         hide();

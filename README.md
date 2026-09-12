@@ -16,7 +16,7 @@
 
 1. `npm run lobby:demo` — http://localhost:5174
 2. `lobby-config.ts` و الگوی `main.ts` استارتر را به بازی کپی کنید
-3. همین پوشه را بعد از `pnpm --filter @platform/lobby-sdk build` داخل ریپوی بازی بگذارید، **یا** تگ تازهٔ GitHub را پین کنید
+3. از ریشهٔ مونوریپو: `pnpm lobby:pack` (پروتکل را sync و `dist` را می‌سازد؛ `npm pack` می‌گیرد) یا `pnpm lobby:pack -- --out path/to/game/vendor/lobby-sdk` برای کپی مستقیم؛ **یا** تگ تازهٔ GitHub را پین کنید
 4. به مسیر لوکال ریپوی پلتفرم alias ندهید (روی سرور نیست)
 5. تست از `/play/{slug}` نه از پورت خام بازی
 

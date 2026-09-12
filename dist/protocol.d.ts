@@ -1,4 +1,9 @@
-/** Bundled lobby protocol — games do not install @platform/lobby-protocol. Keep in sync with packages/lobby-protocol. */
+/**
+ * Bundled lobby wire protocol — generated from @platform/lobby-protocol.
+ * Do not edit by hand. Run: node scripts/sync-lobby-protocol.mjs
+ * (scale roadmap 9.1)
+ */
+/** Lobby SDK protocol version — keep in sync with @platform/lobby-sdk */
 export declare const LOBBY_PROTOCOL_VERSION = "0.1.0";
 export type AvatarPresetKind = 'procedural' | 'glb';
 export interface Vector3 {
@@ -32,6 +37,7 @@ export interface LobbyPlayerState {
     emote: LobbyEmoteKind | null;
     updatedAt: number;
 }
+/** Client → Server */
 export interface LobbyJoinMessage {
     type: 'lobby:join';
     roomId: string;
@@ -71,10 +77,12 @@ export interface LobbyDataMessage {
     payload: string;
 }
 export type LobbyVoiceMode = 'friends' | 'all';
+/** Serializable WebRTC session description (browser RTCSessionDescriptionInit). */
 export interface RtcSessionDescription {
     type?: 'offer' | 'answer' | 'pranswer' | 'rollback';
     sdp?: string;
 }
+/** Serializable ICE candidate (browser RTCIceCandidateInit). */
 export interface RtcIceCandidate {
     candidate?: string;
     sdpMid?: string | null;
@@ -120,6 +128,7 @@ export declare function sanitizeLobbyDataChannel(channel: unknown): string | nul
  */
 export declare function sanitizeLobbyDataPayload(payload: unknown): string | null;
 export type LobbyClientMessage = LobbyJoinMessage | LobbyMoveMessage | LobbyEmoteMessage | LobbyLeaveMessage | LobbyPingMessage | LobbyChatMessage | LobbyDataMessage | LobbyVoiceJoinMessage | LobbyVoiceLeaveMessage | LobbyVoiceMuteMessage | LobbyVoiceOfferMessage | LobbyVoiceAnswerMessage | LobbyVoiceIceMessage;
+/** Server → Client */
 export interface LobbyVoicePeerState {
     userId: string;
     username?: string;
@@ -144,6 +153,9 @@ export interface LobbyWelcomeMessage {
     self: LobbyPlayerState;
     players: LobbyPlayerState[];
     maxPlayers: number;
+    /** Server protocol version (scale roadmap 9.4). */
+    protocolVersion: string;
+    /** Accepted friend user ids for voice filtering (friends mode). */
     friendUserIds?: string[];
     voicePeers?: LobbyVoicePeerState[];
     lobbyFeatures?: LobbyFeatureFlags;
@@ -169,6 +181,18 @@ export interface LobbyPlayerMovedMessage {
     rotationY: number;
     animation: LobbyAnimationState;
     seq: number;
+    serverTime: number;
+}
+/** Batched moves for a room tick (scale roadmap 4.1). Fields may be omitted when unchanged (4.3 delta). */
+export interface LobbyPlayersMovedMessage {
+    type: 'lobby:players:moved';
+    moves: Array<{
+        userId: string;
+        position?: Vector3;
+        rotationY?: number;
+        animation?: LobbyAnimationState;
+        seq: number;
+    }>;
     serverTime: number;
 }
 export interface LobbyPlayerEmoteMessage {
@@ -234,9 +258,11 @@ export interface LobbyVoiceIceBroadcastMessage {
     fromUserId: string;
     candidate: RtcIceCandidate;
 }
-export type LobbyServerMessage = LobbyWelcomeMessage | LobbyStateMessage | LobbyPlayerJoinedMessage | LobbyPlayerLeftMessage | LobbyPlayerMovedMessage | LobbyPlayerEmoteMessage | LobbyChatBroadcastMessage | LobbyDataBroadcastMessage | LobbyVoiceStateMessage | LobbyVoiceJoinedMessage | LobbyVoiceLeftMessage | LobbyVoiceMuteBroadcastMessage | LobbyVoiceOfferBroadcastMessage | LobbyVoiceAnswerBroadcastMessage | LobbyVoiceIceBroadcastMessage | LobbyErrorMessage | LobbyPongMessage;
+export type LobbyServerMessage = LobbyWelcomeMessage | LobbyStateMessage | LobbyPlayerJoinedMessage | LobbyPlayerLeftMessage | LobbyPlayerMovedMessage | LobbyPlayersMovedMessage | LobbyPlayerEmoteMessage | LobbyChatBroadcastMessage | LobbyDataBroadcastMessage | LobbyVoiceStateMessage | LobbyVoiceJoinedMessage | LobbyVoiceLeftMessage | LobbyVoiceMuteBroadcastMessage | LobbyVoiceOfferBroadcastMessage | LobbyVoiceAnswerBroadcastMessage | LobbyVoiceIceBroadcastMessage | LobbyErrorMessage | LobbyPongMessage;
 export declare function parseLobbyClientMessage(data: unknown): LobbyClientMessage | null;
+/** Build per-game room id */
 export declare function gameRoomId(gameSlug: string, instance?: number): string;
+/** Global avatar hub room (phase 7) */
 export declare const GLOBAL_AVATAR_ROOM_ID = "global:avatars";
 export declare function isGlobalAvatarRoom(roomId: string): boolean;
 /**

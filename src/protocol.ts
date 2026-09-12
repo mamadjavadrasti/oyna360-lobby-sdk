@@ -1,5 +1,10 @@
-/** Bundled lobby protocol — games do not install @platform/lobby-protocol. Keep in sync with packages/lobby-protocol. */
+/**
+ * Bundled lobby wire protocol — generated from @platform/lobby-protocol.
+ * Do not edit by hand. Run: node scripts/sync-lobby-protocol.mjs
+ * (scale roadmap 9.1)
+ */
 
+/** Lobby SDK protocol version — keep in sync with @platform/lobby-sdk */
 export const LOBBY_PROTOCOL_VERSION = '0.1.0';
 
 export type AvatarPresetKind = 'procedural' | 'glb';
@@ -41,6 +46,7 @@ export interface LobbyPlayerState {
   updatedAt: number;
 }
 
+/** Client → Server */
 export interface LobbyJoinMessage {
   type: 'lobby:join';
   roomId: string;
@@ -88,11 +94,13 @@ export interface LobbyDataMessage {
 
 export type LobbyVoiceMode = 'friends' | 'all';
 
+/** Serializable WebRTC session description (browser RTCSessionDescriptionInit). */
 export interface RtcSessionDescription {
   type?: 'offer' | 'answer' | 'pranswer' | 'rollback';
   sdp?: string;
 }
 
+/** Serializable ICE candidate (browser RTCIceCandidateInit). */
 export interface RtcIceCandidate {
   candidate?: string;
   sdpMid?: string | null;
@@ -182,6 +190,7 @@ export type LobbyClientMessage =
   | LobbyVoiceAnswerMessage
   | LobbyVoiceIceMessage;
 
+/** Server → Client */
 export interface LobbyVoicePeerState {
   userId: string;
   username?: string;
@@ -208,6 +217,9 @@ export interface LobbyWelcomeMessage {
   self: LobbyPlayerState;
   players: LobbyPlayerState[];
   maxPlayers: number;
+  /** Server protocol version (scale roadmap 9.4). */
+  protocolVersion: string;
+  /** Accepted friend user ids for voice filtering (friends mode). */
   friendUserIds?: string[];
   voicePeers?: LobbyVoicePeerState[];
   lobbyFeatures?: LobbyFeatureFlags;
@@ -237,6 +249,19 @@ export interface LobbyPlayerMovedMessage {
   rotationY: number;
   animation: LobbyAnimationState;
   seq: number;
+  serverTime: number;
+}
+
+/** Batched moves for a room tick (scale roadmap 4.1). Fields may be omitted when unchanged (4.3 delta). */
+export interface LobbyPlayersMovedMessage {
+  type: 'lobby:players:moved';
+  moves: Array<{
+    userId: string;
+    position?: Vector3;
+    rotationY?: number;
+    animation?: LobbyAnimationState;
+    seq: number;
+  }>;
   serverTime: number;
 }
 
@@ -321,6 +346,7 @@ export type LobbyServerMessage =
   | LobbyPlayerJoinedMessage
   | LobbyPlayerLeftMessage
   | LobbyPlayerMovedMessage
+  | LobbyPlayersMovedMessage
   | LobbyPlayerEmoteMessage
   | LobbyChatBroadcastMessage
   | LobbyDataBroadcastMessage
@@ -357,10 +383,12 @@ export function parseLobbyClientMessage(data: unknown): LobbyClientMessage | nul
   }
 }
 
+/** Build per-game room id */
 export function gameRoomId(gameSlug: string, instance = 1): string {
   return instance <= 1 ? `game:${gameSlug}` : `game:${gameSlug}-${instance}`;
 }
 
+/** Global avatar hub room (phase 7) */
 export const GLOBAL_AVATAR_ROOM_ID = 'global:avatars';
 
 export function isGlobalAvatarRoom(roomId: string): boolean {

@@ -1,12 +1,17 @@
 import type { PlatformLobby } from './platform-lobby';
 import { LOBBY_UI_FONT, ensureLobbyPersianFont } from './lobby-font';
+import { resolveLobbyUiMessages, type LobbyUiMessages } from './lobby-ui-i18n';
 
 /**
  * Full-screen connection status overlay.
  * Shows when disconnected / reconnecting / reconnect failed.
  */
-export function attachLobbyConnectionUi(lobby: PlatformLobby): () => void {
+export function attachLobbyConnectionUi(
+  lobby: PlatformLobby,
+  messages?: Partial<LobbyUiMessages>,
+): () => void {
   void ensureLobbyPersianFont();
+  const copy = resolveLobbyUiMessages(lobby.getUiLocale(), messages);
 
   const overlay = document.createElement('div');
   overlay.id = 'oyna-lobby-connection-overlay';
@@ -52,16 +57,16 @@ export function attachLobbyConnectionUi(lobby: PlatformLobby): () => void {
 
   const offDisconnected = lobby.on('disconnected', () => {
     if (failed) return;
-    show('اتصال قطع شد', 'در حال تلاش مجدد…');
+    show(copy.connectionLost, copy.connectionReconnecting);
   });
 
   const offReconnecting = lobby.on('reconnecting', ({ attempt }) => {
-    show('اتصال قطع شد', `تلاش مجدد ${attempt}…`);
+    show(copy.connectionLost, `${copy.connectionRetry} ${attempt}…`);
   });
 
   const offReconnectFailed = lobby.on('reconnectFailed', () => {
     failed = true;
-    show('اتصال برقرار نشد', 'لطفاً اتصال اینترنت خود را بررسی کنید');
+    show(copy.connectionLost, copy.connectionRetry);
   });
 
   const offConnected = lobby.on('connected', () => {

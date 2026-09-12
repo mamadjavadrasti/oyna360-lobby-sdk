@@ -28,6 +28,7 @@ export interface SdkInitPayload {
     lobby?: {
         wsUrl: string;
         roomId: string;
+        strictRoom?: boolean;
     };
 }
 export interface PlatformInitMessage {
@@ -40,6 +41,7 @@ export interface PlatformInitMessage {
     lobby?: {
         wsUrl: string;
         roomId: string;
+        strictRoom?: boolean;
     };
 }
 //# sourceMappingURL=platform-types.d.ts.map

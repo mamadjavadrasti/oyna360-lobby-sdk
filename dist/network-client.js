@@ -1,18 +1,21 @@
 import { io } from 'socket.io-client';
+import { LOBBY_PROTOCOL_VERSION } from './protocol';
 export class NetworkClient {
     wsUrl;
     roomId;
     sessionToken;
     handlers;
+    connectOptions;
     socket = null;
     moveSeq = 0;
     reconnectAttempts = 0;
     maxReconnectAttempts = 8;
-    constructor(wsUrl, roomId, sessionToken, handlers = {}) {
+    constructor(wsUrl, roomId, sessionToken, handlers = {}, connectOptions = {}) {
         this.wsUrl = wsUrl;
         this.roomId = roomId;
         this.sessionToken = sessionToken;
         this.handlers = handlers;
+        this.connectOptions = connectOptions;
     }
     connect() {
         const url = this.wsUrl.replace(/\/lobby\/?$/, '');
@@ -21,6 +24,8 @@ export class NetworkClient {
             query: {
                 sessionToken: this.sessionToken,
                 roomId: this.roomId,
+                protocolVersion: LOBBY_PROTOCOL_VERSION,
+                ...(this.connectOptions.strictRoom ? { strictRoom: '1' } : {}),
             },
             reconnection: true,
             reconnectionAttempts: this.maxReconnectAttempts,
@@ -64,6 +69,9 @@ export class NetworkClient {
                 break;
             case 'lobby:player:moved':
                 this.handlers.onPlayerMoved?.(msg);
+                break;
+            case 'lobby:players:moved':
+                this.handlers.onPlayersMoved?.(msg.moves, msg.serverTime);
                 break;
             case 'lobby:player:emote':
                 this.handlers.onPlayerEmote?.(msg.userId, msg.emote);

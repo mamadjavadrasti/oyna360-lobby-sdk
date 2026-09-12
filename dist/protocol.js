@@ -1,4 +1,9 @@
-/** Bundled lobby protocol — games do not install @platform/lobby-protocol. Keep in sync with packages/lobby-protocol. */
+/**
+ * Bundled lobby wire protocol — generated from @platform/lobby-protocol.
+ * Do not edit by hand. Run: node scripts/sync-lobby-protocol.mjs
+ * (scale roadmap 9.1)
+ */
+/** Lobby SDK protocol version — keep in sync with @platform/lobby-sdk */
 export const LOBBY_PROTOCOL_VERSION = '0.1.0';
 export const LOBBY_CHAT_MAX_LEN = 140;
 /** Max payload bytes for lobby:data (game control / sync). Independent of chat. */
@@ -61,9 +66,11 @@ export function parseLobbyClientMessage(data) {
             return null;
     }
 }
+/** Build per-game room id */
 export function gameRoomId(gameSlug, instance = 1) {
     return instance <= 1 ? `game:${gameSlug}` : `game:${gameSlug}-${instance}`;
 }
+/** Global avatar hub room (phase 7) */
 export const GLOBAL_AVATAR_ROOM_ID = 'global:avatars';
 export function isGlobalAvatarRoom(roomId) {
     return roomId === GLOBAL_AVATAR_ROOM_ID;

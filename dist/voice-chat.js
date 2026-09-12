@@ -2,12 +2,16 @@ const ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
 ];
+/** Default mesh cap — keep in sync with server LOBBY_VOICE_PEER_CAP (roadmap 3.4). */
+export const DEFAULT_VOICE_PEER_CAP = 6;
 export class LobbyVoiceChat {
     signaling;
     localStream = null;
     peers = new Map();
     remoteAudio = new Map();
     voicePeers = new Map();
+    /** Peers we created an offer toward (vs inbound-only). */
+    offerInitiated = new Set();
     active = false;
     mode = 'friends';
     micMuted = false;
@@ -15,6 +19,9 @@ export class LobbyVoiceChat {
     friendIds = new Set();
     listeners = new Set();
     disposed = false;
+    peerCap = DEFAULT_VOICE_PEER_CAP;
+    getPosition = null;
+    lastMeshRefreshMs = 0;
     constructor(signaling) {
         this.signaling = signaling;
     }
@@ -27,8 +34,27 @@ export class LobbyVoiceChat {
         this.selfUserId = selfUserId;
         this.friendIds = new Set(friendUserIds);
     }
+    /** Optional world positions for nearest-N mesh selection. */
+    setPositionProvider(fn) {
+        this.getPosition = fn;
+    }
+    setPeerCap(cap) {
+        this.peerCap = Math.max(1, Math.floor(cap));
+    }
     getState() {
         return this.snapshot();
+    }
+    /**
+     * Re-evaluate nearest peers (e.g. after movement). Throttled to ~2Hz by default.
+     */
+    refreshMesh(force = false) {
+        if (!this.active || this.disposed)
+            return;
+        const now = performance.now();
+        if (!force && now - this.lastMeshRefreshMs < 500)
+            return;
+        this.lastMeshRefreshMs = now;
+        void this.syncPeerConnections(true);
     }
     async enable(mode) {
         if (this.disposed || this.active)
@@ -121,6 +147,7 @@ export class LobbyVoiceChat {
         if (!this.active || fromUserId === this.selfUserId)
             return;
         const peerState = this.voicePeers.get(fromUserId);
+        // Mode gate only — accept inbound offers outside nearest-N (asymmetric mesh).
         if (!peerState || !this.canConnectTo(peerState))
             return;
         const pc = await this.ensurePeer(fromUserId);
@@ -156,11 +183,21 @@ export class LobbyVoiceChat {
         this.listeners.clear();
     }
     async syncPeerConnections(asOfferer) {
-        for (const peer of this.voicePeers.values()) {
-            if (!this.canConnectTo(peer)) {
-                this.closePeer(peer.userId);
+        const meshIds = this.nearestEligiblePeerIds();
+        for (const userId of [...this.peers.keys()]) {
+            const peer = this.voicePeers.get(userId);
+            if (!peer || !this.canConnectTo(peer)) {
+                this.closePeer(userId);
                 continue;
             }
+            // Drop outbound links that fell outside nearest-N; keep inbound replies.
+            if (!meshIds.has(userId) && this.offerInitiated.has(userId)) {
+                this.closePeer(userId);
+            }
+        }
+        for (const peer of this.voicePeers.values()) {
+            if (!meshIds.has(peer.userId))
+                continue;
             if (asOfferer && !this.peers.has(peer.userId)) {
                 await this.createOffer(peer.userId);
             }
@@ -173,7 +210,27 @@ export class LobbyVoiceChat {
         const theyAllow = peer.mode === 'all' || this.friendIds.has(this.selfUserId);
         return iAllow && theyAllow;
     }
+    nearestEligiblePeerIds() {
+        const eligible = [...this.voicePeers.values()].filter((p) => this.canConnectTo(p));
+        if (eligible.length <= this.peerCap) {
+            return new Set(eligible.map((p) => p.userId));
+        }
+        const selfPos = this.getPosition?.(this.selfUserId) ?? null;
+        const ranked = eligible.map((peer) => {
+            const pos = this.getPosition?.(peer.userId);
+            let dist = Number.POSITIVE_INFINITY;
+            if (selfPos && pos) {
+                const dx = pos.x - selfPos.x;
+                const dz = pos.z - selfPos.z;
+                dist = Math.hypot(dx, dz);
+            }
+            return { userId: peer.userId, dist };
+        });
+        ranked.sort((a, b) => a.dist - b.dist || a.userId.localeCompare(b.userId));
+        return new Set(ranked.slice(0, this.peerCap).map((r) => r.userId));
+    }
     async createOffer(userId) {
+        this.offerInitiated.add(userId);
         const pc = await this.ensurePeer(userId);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -225,6 +282,7 @@ export class LobbyVoiceChat {
     closePeer(userId) {
         this.peers.get(userId)?.close();
         this.peers.delete(userId);
+        this.offerInitiated.delete(userId);
         const audio = this.remoteAudio.get(userId);
         if (audio) {
             audio.srcObject = null;

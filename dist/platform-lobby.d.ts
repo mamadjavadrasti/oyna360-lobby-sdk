@@ -10,6 +10,7 @@ import type { LobbyEventMap, LobbyEventName, LobbyPortalOptions, LobbyZoneOption
 import type { LobbyFeatureFlags } from './protocol';
 export declare class PlatformLobby {
     private readonly canvas;
+    private readonly strictRoom;
     private readonly init;
     private readonly config;
     private readonly roomId;
@@ -122,6 +123,7 @@ export declare class PlatformLobby {
         animation: import("./protocol").LobbyAnimationState;
     };
     getScene(): import("@babylonjs/core").Scene;
+    getUiLocale(): "fa" | "en";
     getEngine(): import("@babylonjs/core").Engine;
     addMeshAt(position: Vector3, size?: number): import("@babylonjs/core").Mesh;
     destroy(): void;

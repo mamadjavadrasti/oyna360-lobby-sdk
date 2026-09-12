@@ -83,6 +83,7 @@ export class PlatformLobby {
     roomId: string,
     wsUrl: string,
     config: PlatformLobbyConfig = {},
+    private readonly strictRoom = false,
   ) {
     this.init = init;
     this.roomId = roomId;
@@ -97,7 +98,15 @@ export class PlatformLobby {
     const init = PlatformBridge.fromInit(options.platformInit);
     const roomId = options.roomId ?? init.lobby?.roomId ?? `game:${init.game.slug}`;
     const wsUrl = options.wsUrl ?? init.lobby?.wsUrl ?? 'http://localhost:3001/lobby';
-    const lobby = new PlatformLobby(init, options.canvas, roomId, wsUrl, options.config ?? {});
+    const strictRoom = options.strictRoom ?? init.lobby?.strictRoom ?? false;
+    const lobby = new PlatformLobby(
+      init,
+      options.canvas,
+      roomId,
+      wsUrl,
+      options.config ?? {},
+      strictRoom,
+    );
     await lobby.bootstrap();
     return lobby;
   }
@@ -107,6 +116,7 @@ export class PlatformLobby {
     return PlatformLobby.create({
       canvas,
       roomId: init.lobby?.roomId ?? `game:${init.game.slug}`,
+      strictRoom: init.lobby?.strictRoom,
       platformInit: init,
       config,
       wsUrl: init.lobby?.wsUrl,
@@ -199,6 +209,7 @@ export class PlatformLobby {
           rotationY: state.rotationY,
           animation: state.animation,
         });
+        this.voiceChat?.refreshMesh();
       }
 
       this.remotePlayers.update(dt);
@@ -206,18 +217,24 @@ export class PlatformLobby {
 
     this.emit('ready', undefined);
     this.ready = true;
-    if (this.config.enableMultiplayer !== false) {
-      this.presenceDispose = attachLobbyPresenceUi(this);
+    const uiMessages = this.config.uiMessages;
+    if (this.config.enableMultiplayer !== false && this.config.enablePresenceUi !== false) {
+      this.presenceDispose = attachLobbyPresenceUi(this, uiMessages);
     }
     if (this.config.enableChat !== false) this.attachChat();
     if (this.config.enableVoice !== false && this.config.enableMultiplayer !== false) {
       this.attachVoice();
     }
 
-    if (this.config.enableMultiplayer !== false) {
-      this.connectionDispose = attachLobbyConnectionUi(this);
+    if (this.config.enableMultiplayer !== false && this.config.enableConnectionUi !== false) {
+      this.connectionDispose = attachLobbyConnectionUi(this, uiMessages);
     }
-    this.orientationDispose = attachLobbyOrientationUi();
+    if (this.config.enableOrientationUi !== false) {
+      this.orientationDispose = attachLobbyOrientationUi({
+        locale: this.config.locale,
+        messages: uiMessages,
+      });
+    }
 
     for (const plugin of this.plugins) {
       void plugin.setup(this);
@@ -234,6 +251,12 @@ export class PlatformLobby {
       sendIce: (toUserId, candidate) => this.network?.sendVoiceIce(toUserId, candidate),
     });
     this.voiceChat.setContext(this.init.user.id, []);
+    this.voiceChat.setPositionProvider((userId) => {
+      if (userId === this.init.user.id) {
+        return this.localController.getState().position;
+      }
+      return this.remotePlayers.getPosition(userId);
+    });
 
     this.network = new NetworkClient(
       this.wsUrl,
@@ -269,6 +292,12 @@ export class PlatformLobby {
         },
         onPlayerMoved: (payload) => {
           this.remotePlayers.applyMove(payload);
+        },
+        onPlayersMoved: (moves) => {
+          for (const payload of moves) {
+            if (payload.userId === this.init.user.id) continue;
+            this.remotePlayers.applyMove(payload);
+          }
         },
         onPlayerEmote: (userId, emote) => {
           this.remotePlayers.applyEmote(userId, emote);
@@ -315,6 +344,7 @@ export class PlatformLobby {
           this.emit('reconnectFailed', undefined);
         },
       },
+      { strictRoom: this.strictRoom },
     );
     this.network.connect();
   }
@@ -568,6 +598,10 @@ export class PlatformLobby {
 
   getScene() {
     return this.sceneManager.scene;
+  }
+
+  getUiLocale() {
+    return this.config.locale === 'en' ? 'en' : 'fa';
   }
 
   getEngine() {

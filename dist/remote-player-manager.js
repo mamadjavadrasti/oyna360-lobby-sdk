@@ -69,9 +69,12 @@ export class RemotePlayerManager {
         const entry = this.remotes.get(payload.userId);
         if (!entry)
             return;
-        entry.targetPosition = { ...payload.position };
-        entry.targetRotationY = payload.rotationY;
-        entry.targetAnimation = payload.animation;
+        if (payload.position)
+            entry.targetPosition = { ...payload.position };
+        if (payload.rotationY !== undefined)
+            entry.targetRotationY = payload.rotationY;
+        if (payload.animation !== undefined)
+            entry.targetAnimation = payload.animation;
         entry.lastUpdateAt = Date.now();
     }
     applyEmote(userId, emote) {
@@ -117,6 +120,12 @@ export class RemotePlayerManager {
             entry.animator.update(dt, entry.targetAnimation, !air);
             syncCharacterObstacle(this.scene, entry.root.name, pos.x, pos.z);
         }
+    }
+    getPosition(userId) {
+        const entry = this.remotes.get(userId);
+        if (!entry)
+            return null;
+        return { ...entry.targetPosition };
     }
     list() {
         return [...this.remotes.values()].map((entry) => ({

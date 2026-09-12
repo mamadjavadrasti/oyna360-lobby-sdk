@@ -31,12 +31,24 @@ export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig 
     enableChat?: boolean;
     /** Default true. WebRTC voice chat (friends / all lobby modes). */
     enableVoice?: boolean;
+    /** Default true when multiplayer is on. Join/leave toasts. */
+    enablePresenceUi?: boolean;
+    /** Default true when multiplayer is on. Disconnect overlay. */
+    enableConnectionUi?: boolean;
+    /** Default true. Mobile portrait → landscape prompt. */
+    enableOrientationUi?: boolean;
+    /** UI copy locale for built-in overlays (default `fa`). */
+    locale?: import('./lobby-ui-i18n').LobbyUiLocale;
+    /** Partial overrides for built-in UI strings. */
+    uiMessages?: Partial<import('./lobby-ui-i18n').LobbyUiMessages>;
     /** `auto` picks a tier from device hints; default `auto`. */
     quality?: import('./quality').LobbyQualityLevel | 'auto';
 }
 export interface PlatformLobbyCreateOptions {
     canvas: HTMLCanvasElement;
     roomId: string;
+    /** Join this exact room only (friend invite); no capacity spillover. */
+    strictRoom?: boolean;
     platformInit: SdkInitPayload | PlatformInitMessage;
     config?: PlatformLobbyConfig;
     wsUrl?: string;
