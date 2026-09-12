@@ -68,6 +68,8 @@ export {
   LOBBY_PROTOCOL_VERSION,
   GLOBAL_AVATAR_ROOM_ID,
   gameRoomId,
+  isRoomForGame,
+  parseGameSlugFromRoom,
   LOBBY_CHAT_MAX_LEN,
   LOBBY_DATA_MAX_LEN,
   LOBBY_DATA_CHANNEL_MAX_LEN,

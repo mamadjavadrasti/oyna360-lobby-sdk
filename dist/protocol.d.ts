@@ -239,5 +239,12 @@ export declare function parseLobbyClientMessage(data: unknown): LobbyClientMessa
 export declare function gameRoomId(gameSlug: string, instance?: number): string;
 export declare const GLOBAL_AVATAR_ROOM_ID = "global:avatars";
 export declare function isGlobalAvatarRoom(roomId: string): boolean;
+/**
+ * Best-effort slug from a room id. Slugs may contain hyphens (`game:fall-cars-2`),
+ * so a trailing `-<digits>` is read as an instance suffix. Ambiguous for slugs that
+ * genuinely end in `-<digits>` — prefer `isRoomForGame` when the slug is known.
+ */
 export declare function parseGameSlugFromRoom(roomId: string): string | null;
+/** True when roomId is the base room or a numbered instance of gameSlug. */
+export declare function isRoomForGame(roomId: string, gameSlug: string): boolean;
 //# sourceMappingURL=protocol.d.ts.map

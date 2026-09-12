@@ -68,10 +68,33 @@ export const GLOBAL_AVATAR_ROOM_ID = 'global:avatars';
 export function isGlobalAvatarRoom(roomId) {
     return roomId === GLOBAL_AVATAR_ROOM_ID;
 }
+const GAME_ROOM_PREFIX = 'game:';
+/**
+ * Best-effort slug from a room id. Slugs may contain hyphens (`game:fall-cars-2`),
+ * so a trailing `-<digits>` is read as an instance suffix. Ambiguous for slugs that
+ * genuinely end in `-<digits>` — prefer `isRoomForGame` when the slug is known.
+ */
 export function parseGameSlugFromRoom(roomId) {
     if (roomId === GLOBAL_AVATAR_ROOM_ID)
         return 'avatar-hub';
-    const match = /^game:([^-]+)(?:-\d+)?$/.exec(roomId);
-    return match ? match[1] : null;
+    if (!roomId.startsWith(GAME_ROOM_PREFIX))
+        return null;
+    const rest = roomId.slice(GAME_ROOM_PREFIX.length);
+    if (!rest)
+        return null;
+    const instanced = /^(.+)-(\d+)$/.exec(rest);
+    return instanced ? instanced[1] : rest;
+}
+/** True when roomId is the base room or a numbered instance of gameSlug. */
+export function isRoomForGame(roomId, gameSlug) {
+    if (!gameSlug)
+        return false;
+    if (roomId === gameRoomId(gameSlug))
+        return true;
+    const prefix = `${GAME_ROOM_PREFIX}${gameSlug}-`;
+    if (!roomId.startsWith(prefix))
+        return false;
+    const instance = roomId.slice(prefix.length);
+    return /^\d+$/.test(instance) && Number(instance) > 1;
 }
 //# sourceMappingURL=protocol.js.map
