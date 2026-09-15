@@ -4,7 +4,7 @@
  * (scale roadmap 9.1)
  */
 
-/** Lobby SDK protocol version — keep in sync with @platform/lobby-sdk */
+/** Lobby SDK protocol version — keep in sync with @oyna360/lobby-sdk */
 export const LOBBY_PROTOCOL_VERSION = '0.1.0';
 
 export type AvatarPresetKind = 'procedural' | 'glb';

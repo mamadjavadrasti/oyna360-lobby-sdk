@@ -1,4 +1,4 @@
-# @platform/lobby-sdk
+# @oyna360/lobby-sdk
 
 لابی ۳D oyna360 برای بازی‌سازان (Babylon.js).
 
@@ -36,7 +36,7 @@ npm install github:mamadjavadrasti/oyna360-lobby-sdk#<tag> @babylonjs/core
 ```json
 {
   "dependencies": {
-    "@platform/lobby-sdk": "*",
+    "@oyna360/lobby-sdk": "*",
     "@babylonjs/core": "^7.44.0"
   }
 }
@@ -49,7 +49,7 @@ npm install github:mamadjavadrasti/oyna360-lobby-sdk#<tag> @babylonjs/core
 کپی از استارتر بهتر از حداقل زیر است.
 
 ```typescript
-import { PlatformLobby } from '@platform/lobby-sdk';
+import { PlatformLobby } from '@oyna360/lobby-sdk';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const lobby = await PlatformLobby.createFromPlatform(canvas, {

@@ -2,6 +2,7 @@ import { MeshBuilder, SceneLoader, Vector3 as BVector3 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { sanitizeLobbyChat, sanitizeLobbyDataChannel, sanitizeLobbyDataPayload, } from './protocol';
 import { AvatarFactory } from './avatar-factory';
+import { ensureDracoDecoder } from './draco';
 import { LocalPlayerController } from './local-player-controller';
 import { NetworkClient } from './network-client';
 import { PlatformBridge } from './platform-bridge';
@@ -12,6 +13,7 @@ import { applyStarterLayout as applyStarterLayoutFn } from './starter-layout';
 import { applyPlazaLayout as applyPlazaLayoutFn } from './plaza-layout';
 import { applyLobbyCollisions } from './lobby-colliders';
 import { attachLobbyDebug, buildLobbyDebugReport } from './lobby-debug';
+import { attachLobbyPerfDiag, lobbyPerfNoteLocalUpdate, isLobbyPerfDiagEnabled } from './lobby-perf-diag';
 import { attachPlayground } from './playground/playground-system';
 import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
@@ -104,29 +106,31 @@ export class PlatformLobby {
         });
     }
     async bootstrap() {
-        await ensureLobbyPersianFont();
+        // Font CDN must never block first paint (can hang >60s on filtered networks).
+        void ensureLobbyPersianFont();
+        // Warm Draco WASM in parallel with scene setup (HTTP-cached on repeat visits).
+        void ensureDracoDecoder();
         this.sceneManager = new SceneManager(this.canvas, this.config);
         const layout = this.config;
         const provisionalSlot = provisionalSpawnSlot(this.init.user.id, layout.spawnSlotCount ?? layout.spawnPoints?.length ?? 16);
         const spawnPose = resolveSpawnPose(layout, provisionalSlot);
-        this.localAvatar = await AvatarFactory.createAsync(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName, this.init.user.username, { collider: true });
-        this.localController = new LocalPlayerController(this.localAvatar, spawnPose.position, this.sceneManager.scene, () => this.sceneManager.camera, this.config);
-        this.localController.teleportTo(spawnPose.position, spawnPose.rotationY);
-        this.localController.setSounds(this.music);
-        this.canvas.addEventListener('pointerdown', () => {
-            void this.music.unlock(true);
-        });
         this.remotePlayers = new RemotePlayerManager(this.sceneManager.scene, this.init.user.id);
         window.addEventListener('resize', this.resizeHandler);
-        if (this.config.enableMultiplayer !== false && this.init.session.token !== 'dev-token') {
-            this.connectNetwork();
-        }
+        // Show sky/ground immediately — do not freeze the canvas while the local GLB parses.
         let lastTime = performance.now();
         this.sceneManager.startRenderLoop(() => {
+            if (this.destroyed)
+                return;
             const now = performance.now();
             const dt = Math.min(0.05, (now - lastTime) / 1000);
             lastTime = now;
+            if (!this.localController)
+                return;
+            const tLocal = isLobbyPerfDiagEnabled() ? performance.now() : 0;
             const state = this.localController.update(dt);
+            if (isLobbyPerfDiagEnabled()) {
+                lobbyPerfNoteLocalUpdate(performance.now() - tLocal);
+            }
             this.playground?.update(dt, this.localController, state.position);
             this.sceneManager.followPlayer(this.localAvatar.position, dt, this.localController.getIgnoreMeshes());
             this.zoneManager.updatePlayer(this.init.user.id, state.position);
@@ -150,6 +154,18 @@ export class PlatformLobby {
             }
             this.remotePlayers.update(dt);
         });
+        this.localAvatar = await AvatarFactory.createAsync(this.sceneManager.scene, this.init.avatar, 'local-player', this.init.user.displayName, this.init.user.username, { collider: true });
+        if (this.destroyed)
+            return;
+        this.localController = new LocalPlayerController(this.localAvatar, spawnPose.position, this.sceneManager.scene, () => this.sceneManager.camera, this.config);
+        this.localController.teleportTo(spawnPose.position, spawnPose.rotationY);
+        this.localController.setSounds(this.music);
+        this.canvas.addEventListener('pointerdown', () => {
+            void this.music.unlock(true);
+        });
+        if (this.config.enableMultiplayer !== false && this.init.session.token !== 'dev-token') {
+            this.connectNetwork();
+        }
         this.emit('ready', undefined);
         this.ready = true;
         const uiMessages = this.config.uiMessages;
@@ -173,6 +189,43 @@ export class PlatformLobby {
         for (const plugin of this.plugins) {
             void plugin.setup(this);
         }
+        if (typeof window !== 'undefined') {
+            this.attachDebug(window);
+            attachLobbyPerfDiag(() => this.sceneManager.scene, () => this.sceneManager.engine, window);
+            window.__OYNA360_SDK_BUILD__ = 'avatar-opt-v11';
+            console.info('[lobby-sdk] build avatar-opt-v11');
+        }
+    }
+    /**
+     * DIAG ONLY: upsert a synthetic remote player for performance measurement.
+     * Does not change multiplayer protocol behavior.
+     */
+    diagUpsertRemote(player) {
+        this.remotePlayers.upsert(player);
+    }
+    /** DIAG ONLY: remove a synthetic/remote player used for measurement. */
+    diagRemoveRemote(userId) {
+        this.remotePlayers.remove(userId);
+    }
+    /** DIAG ONLY: wait until a remote userId appears in the remote list (or timeout). */
+    async diagWaitRemote(userId, timeoutMs = 60_000) {
+        const start = performance.now();
+        while (performance.now() - start < timeoutMs) {
+            if (this.remotePlayers.list().some((p) => p.userId === userId))
+                return true;
+            await new Promise((r) => setTimeout(r, 50));
+        }
+        return false;
+    }
+    /** DIAG ONLY: wait until remote GLB/placeholder swap finished. */
+    async diagWaitRemoteReady(userId, timeoutMs = 60_000) {
+        const start = performance.now();
+        while (performance.now() - start < timeoutMs) {
+            if (this.remotePlayers.isRemoteReady(userId))
+                return true;
+            await new Promise((r) => setTimeout(r, 50));
+        }
+        return false;
     }
     connectNetwork() {
         this.voiceChat = new LobbyVoiceChat({
@@ -452,6 +505,18 @@ export class PlatformLobby {
     }
     addLookDelta(dx, dy) {
         this.sceneManager.thirdPerson.addLookDelta(dx, dy);
+    }
+    /** Game-side camera distance (third-person orbit radius). */
+    setCameraOrbit(radius, limits) {
+        const tp = this.sceneManager.thirdPerson;
+        const cam = tp.camera;
+        if (typeof limits?.lower === 'number')
+            cam.lowerRadiusLimit = limits.lower;
+        if (typeof limits?.upper === 'number')
+            cam.upperRadiusLimit = limits.upper;
+        const clamped = Math.min(cam.upperRadiusLimit ?? 16, Math.max(cam.lowerRadiusLimit ?? 2.2, radius));
+        tp.wantedRadius = clamped;
+        cam.radius = clamped;
     }
     tryPlaygroundInteract() {
         return this.playground?.trySlide() ?? false;

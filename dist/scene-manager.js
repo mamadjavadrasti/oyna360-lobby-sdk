@@ -1,22 +1,40 @@
 import { Color3, Color4, DefaultRenderingPipeline, DirectionalLight, Engine, GlowLayer, HemisphericLight, MeshBuilder, Scene, StandardMaterial, Vector3, } from '@babylonjs/core';
-import { lobbyQualitySettings } from './quality';
+import { LOBBY_QUALITY, isTouchDevice, resolveLobbyQuality, shouldDisableLobbyBloom, } from './quality';
 import { ThirdPersonCamera } from './third-person-camera';
+import { isLobbyPerfDiagEnabled, lobbyPerfBeginFrame, lobbyPerfEndFrame, lobbyPerfMark, } from './lobby-perf-diag';
 export class SceneManager {
     engine;
     scene;
     thirdPerson;
     groundMaterial;
     canvas;
+    glow;
+    fx;
+    qualityLevel;
+    baseGlowIntensity = 0.28;
     constructor(canvas, config = {}) {
         this.canvas = canvas;
-        const quality = lobbyQualitySettings(config.quality);
+        this.qualityLevel = resolveLobbyQuality(config.quality);
+        const quality = LOBBY_QUALITY[this.qualityLevel];
         this.engine = new Engine(canvas, quality.antialias, {
-            preserveDrawingBuffer: true,
             stencil: true,
             adaptToDeviceRatio: true,
             limitDeviceRatio: quality.pixelRatioCap,
+            // preserveDrawingBuffer doubles GPU memory and is only needed for screenshots.
+            preserveDrawingBuffer: false,
+            powerPreference: isTouchDevice() ? 'low-power' : 'high-performance',
         });
+        // Plaza PointLights + skinned PBR + HDR/prepass exceeds WebGL2's 12 vertex
+        // UBO slots on many GPUs; the second unique avatar shader fails to compile
+        // and the body vanishes (nametag only). Regular uniforms stay under budget.
+        this.engine.disableUniformBuffers = true;
         this.scene = new Scene(this.engine);
+        this.scene.metadata = {
+            ...(this.scene.metadata ?? {}),
+            lobbyQuality: this.qualityLevel,
+            lobbyAvatarCount: 0,
+            applyLobbyCrowdLoad: (count) => this.applyCrowdLoad(count),
+        };
         this.scene.collisionsEnabled = true;
         this.scene.gravity = new Vector3(0, -0.8, 0);
         const sky = Color3.FromHexString(config.skyColor ?? '#1a1450');
@@ -39,25 +57,63 @@ export class SceneManager {
         this.scene.fogMode = Scene.FOGMODE_EXP2;
         this.scene.fogDensity = config.fogDensity ?? 0.012;
         this.scene.fogColor = sky;
-        const distance = config.cameraDistance && config.cameraDistance >= 6 ? config.cameraDistance : 9.5;
-        const height = config.cameraHeight && config.cameraHeight >= 2 ? config.cameraHeight : 5;
+        const distance = config.cameraDistance && config.cameraDistance >= 3.5 ? config.cameraDistance : 9.5;
+        const height = config.cameraHeight && config.cameraHeight >= 1.8 ? config.cameraHeight : 5;
         this.thirdPerson = new ThirdPersonCamera(this.scene, canvas, { distance, height });
         canvas.tabIndex = 0;
         canvas.style.outline = 'none';
         canvas.addEventListener('pointerdown', () => canvas.focus());
         queueMicrotask(() => canvas.focus());
-        const glow = new GlowLayer('plaza-glow', this.scene);
-        glow.intensity = 0.28;
-        const fx = new DefaultRenderingPipeline('plaza-fx', true, this.scene, [this.thirdPerson.camera]);
-        fx.bloomEnabled = quality.bloom;
-        fx.bloomThreshold = 0.72;
-        fx.bloomWeight = quality.bloomWeight;
-        fx.bloomKernel = quality.bloomKernel;
-        fx.fxaaEnabled = quality.fxaa;
-        fx.imageProcessingEnabled = true;
-        if (fx.imageProcessing) {
-            fx.imageProcessing.contrast = 1.12;
-            fx.imageProcessing.exposure = 1.05;
+        this.glow = new GlowLayer('plaza-glow', this.scene);
+        this.glow.intensity = this.baseGlowIntensity;
+        this.scene.metadata = { ...(this.scene.metadata ?? {}), plazaGlow: this.glow };
+        this.fx = new DefaultRenderingPipeline('plaza-fx', true, this.scene, [this.thirdPerson.camera]);
+        this.fx.bloomEnabled = quality.bloom;
+        this.fx.bloomThreshold = 0.72;
+        this.fx.bloomWeight = quality.bloomWeight;
+        this.fx.bloomKernel = quality.bloomKernel;
+        this.fx.fxaaEnabled = quality.fxaa;
+        this.fx.imageProcessingEnabled = true;
+        // Scene-level only — never enable per-mesh SSAO/DoF (skinned avatars break + cost GPU).
+        const fxAny = this.fx;
+        if ('ssaoEnabled' in fxAny)
+            fxAny.ssaoEnabled = false;
+        if ('depthOfFieldEnabled' in fxAny)
+            fxAny.depthOfFieldEnabled = false;
+        if ('chromaticAberrationEnabled' in fxAny)
+            fxAny.chromaticAberrationEnabled = false;
+        if ('sharpenEnabled' in fxAny)
+            fxAny.sharpenEnabled = false;
+        if ('grainEnabled' in fxAny)
+            fxAny.grainEnabled = false;
+        if (this.fx.imageProcessing) {
+            this.fx.imageProcessing.contrast = 1.12;
+            this.fx.imageProcessing.exposure = 1.05;
+        }
+        this.engine.onContextLostObservable.add(() => {
+            console.warn('[lobby-sdk] WebGL context lost — dropping post-FX');
+        });
+        this.engine.onContextRestoredObservable.add(() => {
+            this.applyCrowdLoad(Math.max(this.readAvatarCount(), 12));
+            this.engine.resize(true);
+        });
+    }
+    readAvatarCount() {
+        const count = this.scene.metadata?.lobbyAvatarCount;
+        return typeof count === 'number' ? count : 0;
+    }
+    applyCrowdLoad(avatarCount) {
+        this.scene.metadata = { ...(this.scene.metadata ?? {}), lobbyAvatarCount: avatarCount };
+        const touch = isTouchDevice();
+        const bloomOff = shouldDisableLobbyBloom({
+            quality: this.qualityLevel,
+            touch,
+            avatarCount,
+        });
+        this.fx.bloomEnabled = !bloomOff && LOBBY_QUALITY[this.qualityLevel].bloom;
+        this.glow.intensity = bloomOff ? 0.1 : this.baseGlowIntensity;
+        if (touch && avatarCount >= 20) {
+            this.engine.setHardwareScalingLevel(Math.max(this.engine.getHardwareScalingLevel(), 1.25));
         }
     }
     get camera() {
@@ -81,8 +137,18 @@ export class SceneManager {
     }
     startRenderLoop(onFrame) {
         this.engine.runRenderLoop(() => {
+            lobbyPerfBeginFrame();
+            const tLogic = isLobbyPerfDiagEnabled() ? performance.now() : 0;
             onFrame();
+            if (isLobbyPerfDiagEnabled()) {
+                lobbyPerfMark('frame_logic', performance.now() - tLogic);
+            }
+            const tRender = isLobbyPerfDiagEnabled() ? performance.now() : 0;
             this.scene.render();
+            if (isLobbyPerfDiagEnabled()) {
+                lobbyPerfMark('scene_render', performance.now() - tRender);
+            }
+            lobbyPerfEndFrame(this.engine, this.scene);
         });
     }
     resize() {

@@ -4,6 +4,9 @@ export const LOBBY_UI_FONT = 'Vazirmatn, Tahoma, sans-serif';
 const FONT_HREF =
   'https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css';
 
+/** Cap how long startup waits on the font CDN (filtered networks can hang otherwise). */
+const FONT_WAIT_MS = 450;
+
 export function lobbyCanvasFont(px: number, weight = 'bold') {
   return `${weight} ${px}px ${LOBBY_UI_FONT}`;
 }
@@ -21,8 +24,15 @@ export async function ensureLobbyPersianFont(): Promise<void> {
   }
 
   try {
-    await document.fonts.load(`700 48px ${LOBBY_UI_FONT}`);
-    await document.fonts.ready;
+    await Promise.race([
+      (async () => {
+        await document.fonts.load(`700 48px ${LOBBY_UI_FONT}`);
+        await document.fonts.ready;
+      })(),
+      new Promise<void>((resolve) => {
+        window.setTimeout(resolve, FONT_WAIT_MS);
+      }),
+    ]);
   } catch {
     /* canvas falls back to Tahoma */
   }

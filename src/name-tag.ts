@@ -57,6 +57,8 @@ export function attachNameTag(
   mat.useAlphaFromDiffuseTexture = true;
   mat.transparencyMode = 2;
   plane.material = mat;
+  plane.metadata = { ...(plane.metadata ?? {}), isNameTag: true };
+  mat.metadata = { ...(mat.metadata as object ?? {}), isNameTag: true };
 
   return plane;
 }

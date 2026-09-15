@@ -4,10 +4,13 @@ export declare class RemotePlayerManager {
     private readonly scene;
     private readonly selfUserId;
     private readonly remotes;
-    private readonly loading;
+    /** userId → in-flight generation (also used as "loading" flag). */
+    private readonly loadingGen;
+    private generationSeq;
     constructor(scene: Scene, selfUserId: string);
     upsert(player: LobbyPlayerState): void;
     private spawnRemote;
+    private isSpawnCurrent;
     applyMove(payload: {
         userId: string;
         position?: LobbyPlayerState['position'];
@@ -20,6 +23,8 @@ export declare class RemotePlayerManager {
         displayName: string;
         username: string;
     } | null;
+    isRemoteReady(userId: string): boolean;
+    private setDrawVisible;
     update(dt: number): void;
     getPosition(userId: string): LobbyPlayerState['position'] | null;
     list(): {
@@ -33,6 +38,7 @@ export declare class RemotePlayerManager {
         };
         rotationY: number;
         animation: LobbyAnimationState;
+        ready: boolean;
     }[];
     dispose(): void;
 }

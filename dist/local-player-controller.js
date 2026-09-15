@@ -74,6 +74,7 @@ export class LocalPlayerController {
         this.runMultiplier = config.runMultiplier ?? 1.3;
         this.root.position.set(spawn.x, spawn.y, spawn.z);
         this.animator = new HumanoidAnimator(root, AvatarFactory.getAnimationGroups(root));
+        this.animator.setSpeedReference(this.walkSpeed, this.walkSpeed * this.runMultiplier);
         this.yaw = 0;
         this.syncVisualYaw();
         window.addEventListener('keydown', this.onKeyDown, true);
@@ -310,10 +311,12 @@ export class LocalPlayerController {
             this.hVel.set(0, 0, 0);
             this.vy = 0;
         }
-        const moving = this.hVel.length() > 0.35;
+        const groundSpeed = Math.hypot(this.hVel.x, this.hVel.z);
+        const moving = groundSpeed > 0.35;
         if (moving) {
             const targetYaw = Math.atan2(this.hVel.x, this.hVel.z);
-            const turn = 1 - Math.exp(-11 * dt);
+            // Soft but snappy: body catches facing without lagging behind the feet.
+            const turn = 1 - Math.exp(-16 * dt);
             this.yaw = lerpYaw(this.yaw, targetYaw, turn);
             this.syncVisualYaw();
         }
@@ -323,7 +326,7 @@ export class LocalPlayerController {
             this.animation = running && inputLen > 0.2 ? 'run' : 'walk';
         else
             this.animation = 'idle';
-        this.animator.update(dt, this.animation, this.grounded);
+        this.animator.update(dt, this.animation, this.grounded, groundSpeed);
         if (this.animator.takeFootPlant(this.animation, dt)) {
             this.audio?.playStep(this.animation === 'run');
         }

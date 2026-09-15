@@ -15,6 +15,7 @@ export declare class ThirdPersonCamera {
         distance?: number;
         height?: number;
     });
+    private minRadius;
     /** Mobile look pad: x/y in -1..1 held, or instantaneous deltas via addLookDelta. */
     setLookStick(x: number, y: number): void;
     addLookDelta(dx: number, dy: number): void;

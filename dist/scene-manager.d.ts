@@ -8,7 +8,13 @@ export declare class SceneManager {
     readonly thirdPerson: ThirdPersonCamera;
     private groundMaterial;
     private readonly canvas;
+    private readonly glow;
+    private readonly fx;
+    private readonly qualityLevel;
+    private readonly baseGlowIntensity;
     constructor(canvas: HTMLCanvasElement, config?: PlatformLobbyConfig);
+    private readAvatarCount;
+    applyCrowdLoad(avatarCount: number): void;
     get camera(): ArcRotateCamera;
     followPlayer(position: Vector3, dt: number, ignoreMeshes?: AbstractMesh[]): void;
     setCameraTarget(target: Vector3): void;

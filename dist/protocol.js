@@ -3,7 +3,7 @@
  * Do not edit by hand. Run: node scripts/sync-lobby-protocol.mjs
  * (scale roadmap 9.1)
  */
-/** Lobby SDK protocol version — keep in sync with @platform/lobby-sdk */
+/** Lobby SDK protocol version — keep in sync with @oyna360/lobby-sdk */
 export const LOBBY_PROTOCOL_VERSION = '0.1.0';
 export const LOBBY_CHAT_MAX_LEN = 140;
 /** Max payload bytes for lobby:data (game control / sync). Independent of chat. */

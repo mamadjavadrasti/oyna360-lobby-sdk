@@ -43,6 +43,7 @@ export interface LobbyDebugHandle {
 declare global {
     interface Window {
         __OYNA360_LOBBY_DEBUG__?: LobbyDebugHandle;
+        __OYNA360_SDK_BUILD__?: string;
     }
 }
 export declare function attachLobbyDebug(lobby: PlatformLobby, win?: Window): LobbyDebugHandle;

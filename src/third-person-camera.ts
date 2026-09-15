@@ -1,6 +1,13 @@
 import { ArcRotateCamera, Ray, Vector3 } from '@babylonjs/core';
 import type { AbstractMesh, Scene } from '@babylonjs/core';
 
+/** Keep the lens above the floor so near-plane clipping never paints the whole frame black. */
+const MIN_CAMERA_Y = 0.55;
+/** Floor for occlusion pull-in; game tuning may raise lowerRadiusLimit further. */
+const DEFAULT_MIN_RADIUS = 2.2;
+/** Pull back from the hit surface so the near plane stays outside the mesh. */
+const OCCLUSION_CLEARANCE = 0.55;
+
 export class ThirdPersonCamera {
   readonly camera: ArcRotateCamera;
   wantedRadius: number;
@@ -24,20 +31,29 @@ export class ThirdPersonCamera {
     const beta = Math.acos(Math.min(0.82, Math.max(0.18, yOff / distance)));
 
     this.camera = new ArcRotateCamera('camera', Math.PI, beta, distance, this.target.clone(), scene);
-    this.camera.lowerRadiusLimit = 1.6;
+    this.camera.lowerRadiusLimit = DEFAULT_MIN_RADIUS;
     this.camera.upperRadiusLimit = 16;
-    this.camera.lowerBetaLimit = 0.35;
-    this.camera.upperBetaLimit = 1.42;
+    // beta≈0 top-down, β=π/2 horizon, β>π/2 looks up at the sky.
+    this.camera.lowerBetaLimit = 0.28;
+    this.camera.upperBetaLimit = 1.72;
+    this.camera.minZ = 0.2;
+    this.camera.maxZ = 800;
     this.camera.panningSensibility = 0;
     this.camera.inertia = 0;
     this.camera.inputs.clear();
 
+    // pointerdown on canvas; move/up on window so look still works inside cross-origin iframes
+    // where setPointerCapture is flaky and move events miss the canvas.
     canvas.addEventListener('pointerdown', this.onPointerDown);
-    canvas.addEventListener('pointermove', this.onPointerMove);
-    canvas.addEventListener('pointerup', this.onPointerUp);
-    canvas.addEventListener('pointercancel', this.onPointerUp);
+    window.addEventListener('pointermove', this.onPointerMove);
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onPointerUp);
     canvas.addEventListener('wheel', this.onWheel, { passive: false });
     canvas.addEventListener('contextmenu', this.onContextMenu);
+  }
+
+  private minRadius(): number {
+    return Math.max(DEFAULT_MIN_RADIUS, this.camera.lowerRadiusLimit ?? DEFAULT_MIN_RADIUS);
   }
 
   /** Mobile look pad: x/y in -1..1 held, or instantaneous deltas via addLookDelta. */
@@ -58,7 +74,11 @@ export class ThirdPersonCamera {
     this.pointerId = e.pointerId;
     this.lastX = e.clientX;
     this.lastY = e.clientY;
-    (e.target as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
+    try {
+      (e.target as HTMLElement | null)?.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore — window-level move/up still drives look
+    }
   };
 
   private onPointerMove = (e: PointerEvent) => {
@@ -76,11 +96,24 @@ export class ThirdPersonCamera {
 
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    this.wantedRadius = Math.min(16, Math.max(4, this.wantedRadius + Math.sign(e.deltaY) * 0.7));
+    const min = Math.max(this.minRadius(), 3.2);
+    this.wantedRadius = Math.min(16, Math.max(min, this.wantedRadius + Math.sign(e.deltaY) * 0.7));
   };
 
   private clampBeta() {
-    this.camera.beta = Math.min(this.camera.upperBetaLimit ?? 1.42, Math.max(this.camera.lowerBetaLimit ?? 0.35, this.camera.beta));
+    const lo = this.camera.lowerBetaLimit ?? 0.28;
+    const hi = this.camera.upperBetaLimit ?? 1.72;
+    let beta = Math.min(hi, Math.max(lo, this.camera.beta));
+
+    // Soft floor: don't tip so far under the horizon that the lens clips underground.
+    const radius = Math.max(this.camera.radius, this.minRadius());
+    const minCos = (MIN_CAMERA_Y - this.target.y) / radius;
+    if (minCos > -1 && minCos < 1) {
+      const maxBeta = Math.acos(minCos);
+      if (beta > maxBeta) beta = maxBeta;
+    }
+
+    this.camera.beta = beta;
   }
 
   update(playerPosition: Vector3, dt: number, ignoreMeshes: AbstractMesh[]) {
@@ -109,13 +142,36 @@ export class ThirdPersonCamera {
         return false;
       }
       if (mesh.name.includes('-rail-')) return false;
+      if (
+        mesh.name === 'ground' ||
+        mesh.name === 'grass-ground' ||
+        mesh.name === 'spawn-plaza' ||
+        mesh.name.startsWith('path-') ||
+        mesh.name.includes('plaza')
+      ) {
+        return false;
+      }
       return mesh.isPickable;
     });
 
-    const blocked = hit?.hit && hit.distance < desiredLen;
-    const goal = blocked ? Math.max(1.6, hit.distance - 0.4) : desiredLen;
-    const zoom = 1 - Math.exp(-(blocked ? 18 : 6) * dt);
-    this.camera.radius += (goal - this.camera.radius) * zoom;
+    const minR = this.minRadius();
+    const blocked = hit?.hit && typeof hit.distance === 'number' && hit.distance < desiredLen;
+    let goal = desiredLen;
+    if (blocked && hit?.distance != null) {
+      goal = Math.max(minR, hit.distance - OCCLUSION_CLEARANCE);
+    }
+
+    if (blocked) {
+      const zoom = 1 - Math.exp(-18 * dt);
+      this.camera.radius += (goal - this.camera.radius) * zoom;
+    } else {
+      // Snap to the wanted orbit when the view is clear — avoids stuck far cameras
+      // after limits/tuning changes (lerp alone could fight other writers).
+      this.camera.radius = desiredLen;
+    }
+    if (this.camera.radius < minR) this.camera.radius = minR;
+
+    this.clampBeta();
   }
 
   private onContextMenu = (e: Event) => {
@@ -124,9 +180,9 @@ export class ThirdPersonCamera {
 
   dispose(canvas: HTMLCanvasElement) {
     canvas.removeEventListener('pointerdown', this.onPointerDown);
-    canvas.removeEventListener('pointermove', this.onPointerMove);
-    canvas.removeEventListener('pointerup', this.onPointerUp);
-    canvas.removeEventListener('pointercancel', this.onPointerUp);
+    window.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onPointerUp);
     canvas.removeEventListener('wheel', this.onWheel);
     canvas.removeEventListener('contextmenu', this.onContextMenu);
   }

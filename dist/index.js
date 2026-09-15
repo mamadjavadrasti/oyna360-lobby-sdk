@@ -1,9 +1,13 @@
+export const LOBBY_SDK_BUILD = 'avatar-opt-v11';
 export { PlatformLobby } from './platform-lobby';
 export { PlatformBridge } from './platform-bridge';
-export { AvatarFactory } from './avatar-factory';
-export { SceneManager } from './scene-manager';
-export { LocalPlayerController } from './local-player-controller';
+export { AvatarFactory, applyAvatarTint, applyAvatarBaseAlbedo, readBaseAlbedoUrlFromConfig } from './avatar-factory';
+export { resolveGlbUrl } from './avatar-config';
+export { attachAvatarAccessories, attachAccessoriesFromAvatarConfig } from './avatar-accessories';
 export { HumanoidAnimator } from './humanoid-animator';
+export { HumanoidPose, HUMANOID_JOINTS, HUMANOID_JOINT_INDEX, WALK_GAIT, RUN_GAIT, approach, cloneGait, footContacts, gaitFrequency, lerpGait, writeAirPose, writeGaitPose, writeIdlePose, writeSlidePose, } from './humanoid-locomotion';
+export { buildHumanoidBoneRig, applyHumanoidPose } from './humanoid-rig';
+export { pickAvatarClip, dedupeClipsByName, AVATAR_CLIP_ALIASES } from './avatar-clips';
 export { ThirdPersonCamera } from './third-person-camera';
 export { applyLobbyCollisions, syncCharacterObstacle, removeCharacterObstacle } from './lobby-colliders';
 export { NetworkClient } from './network-client';
@@ -11,6 +15,7 @@ export { RemotePlayerManager } from './remote-player-manager';
 export { ZoneManager, PortalManager } from './zones';
 export { defineLobbyPlugin, ShopZonePlugin, LeaderboardZonePlugin, } from './plugins';
 export { attachLobbyDebug, buildLobbyDebugReport, setLobbyCameraPreset } from './lobby-debug';
+export { attachLobbyPerfDiag, captureLobbyPerfSnapshot, sampleLobbyPerf, setLobbyPerfDiagEnabled, resetLobbyPerfDiag, isLobbyPerfDiagEnabled, diagSetAlwaysSelectAsActiveMesh, diagSetDisableUniformBuffers, getLobbyPerfPhaseSummary, } from './lobby-perf-diag';
 export { attachNameTag } from './name-tag';
 export { applyStarterLayout, createPortalVisual } from './starter-layout';
 export { applyPlazaLayout, DEFAULT_PLAZA_ROOMS } from './plaza-layout';
@@ -27,6 +32,6 @@ export { formatPlayerLabel, formatPlayerLabelParts, formatPlayerHandle, formatAv
 export { DEFAULT_LOBBY_SPAWN, lobbySpawnPose, provisionalSpawnSlot, resolveSpawnPose, spawnLayoutFromConfig, } from './spawn-utils';
 export { ensureLobbyPersianFont, lobbyCanvasFont, LOBBY_UI_FONT } from './lobby-font';
 export { SLIDE_ANCHOR, TRAMPOLINE_ANCHOR } from './playground/playground-layout';
-export { LOBBY_QUALITY, detectLobbyQuality, isTouchDevice, lobbyQualitySettings, resolveLobbyQuality, } from './quality';
+export { LOBBY_QUALITY, detectLobbyQuality, isTouchDevice, lobbyQualitySettings, resolveLobbyQuality, shouldDisableLobbyBloom, shouldTrimAvatarDetailMaps, remoteAvatarAnimStride, LOBBY_AVATAR_ANIM_FULL_DIST, LOBBY_AVATAR_ANIM_HALF_DIST, LOBBY_AVATAR_ANIM_QUARTER_DIST, } from './quality';
 export { LOBBY_PROTOCOL_VERSION, GLOBAL_AVATAR_ROOM_ID, gameRoomId, isRoomForGame, parseGameSlugFromRoom, LOBBY_CHAT_MAX_LEN, LOBBY_DATA_MAX_LEN, LOBBY_DATA_CHANNEL_MAX_LEN, sanitizeLobbyChat, sanitizeLobbyDataChannel, sanitizeLobbyDataPayload, } from './protocol';
 //# sourceMappingURL=index.js.map

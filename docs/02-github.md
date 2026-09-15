@@ -7,7 +7,7 @@
 از روت ریپوی پلتفرم:
 
 ```powershell
-pnpm.cmd --filter @platform/lobby-sdk build
+pnpm.cmd --filter @oyna360/lobby-sdk build
 cd packages/lobby-sdk
 # اگر ریپو از قبل هست:
 git add dist src docs README.md LICENSE package.json

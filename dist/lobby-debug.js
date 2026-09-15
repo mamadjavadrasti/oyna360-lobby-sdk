@@ -67,6 +67,28 @@ export function buildLobbyDebugReport(lobby) {
             pass: meshSet.has('local-player-body') || meshSet.has('local-player-head'),
         },
         { name: 'local_player_nametag', pass: meshSet.has('local-player-nametag') },
+        (() => {
+            const root = scene.getTransformNodeByName('local-player');
+            const nodes = root ? [root, ...root.getDescendants(false)] : [];
+            const visibleNames = [];
+            let skinned = 0;
+            for (const node of nodes) {
+                const mesh = node;
+                const verts = mesh.getTotalVertices?.() ?? 0;
+                const base = (mesh.name ?? '').replace(/__a\d+$/, '').toLowerCase();
+                if (verts < 24 || !mesh.skeleton || base === '__root__' || base === 'world')
+                    continue;
+                skinned++;
+                if (mesh.isEnabled?.() !== false && mesh.isVisible !== false && (mesh.visibility ?? 1) > 0.2) {
+                    visibleNames.push(mesh.name ?? '');
+                }
+            }
+            return {
+                name: 'local_skinned_visible',
+                pass: visibleNames.length > 0,
+                detail: `skinned=${skinned} visible=${visibleNames.length} names=${visibleNames.join(',')}`,
+            };
+        })(),
     ];
     const root = scene.getTransformNodeByName('local-player');
     const abs = root?.getAbsolutePosition();

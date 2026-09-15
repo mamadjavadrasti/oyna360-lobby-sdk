@@ -1,13 +1,12 @@
 import '@babylonjs/loaders/glTF';
 import type { SdkInitPayload } from './platform-types';
-import { type LobbyEmoteKind } from './protocol';
+import { type LobbyEmoteKind, type LobbyPlayerState, type LobbyFeatureFlags } from './protocol';
 import { LocalPlayerController } from './local-player-controller';
 import type { LobbyPlugin } from './types';
 import { type StarterLayoutConfig } from './starter-layout';
 import { type PlazaLayoutConfig } from './plaza-layout';
 import { LobbyVoiceChat } from './voice-chat';
 import type { LobbyEventMap, LobbyEventName, LobbyPortalOptions, LobbyZoneOptions, PlatformLobbyConfig, PlatformLobbyCreateOptions, PlatformLobbyDevOptions, Vector3 } from './types';
-import type { LobbyFeatureFlags } from './protocol';
 export declare class PlatformLobby {
     private readonly canvas;
     private readonly strictRoom;
@@ -43,6 +42,17 @@ export declare class PlatformLobby {
     static createFromPlatform(canvas: HTMLCanvasElement, config?: PlatformLobbyConfig): Promise<PlatformLobby>;
     static createDev(options: PlatformLobbyDevOptions): Promise<PlatformLobby>;
     private bootstrap;
+    /**
+     * DIAG ONLY: upsert a synthetic remote player for performance measurement.
+     * Does not change multiplayer protocol behavior.
+     */
+    diagUpsertRemote(player: LobbyPlayerState): void;
+    /** DIAG ONLY: remove a synthetic/remote player used for measurement. */
+    diagRemoveRemote(userId: string): void;
+    /** DIAG ONLY: wait until a remote userId appears in the remote list (or timeout). */
+    diagWaitRemote(userId: string, timeoutMs?: number): Promise<boolean>;
+    /** DIAG ONLY: wait until remote GLB/placeholder swap finished. */
+    diagWaitRemoteReady(userId: string, timeoutMs?: number): Promise<boolean>;
     private connectNetwork;
     on<E extends LobbyEventName>(event: E, handler: (payload: LobbyEventMap[E]) => void): () => void;
     off<E extends LobbyEventName>(event: E, handler: (payload: LobbyEventMap[E]) => void): void;
@@ -75,6 +85,7 @@ export declare class PlatformLobby {
         };
         rotationY: number;
         animation: import("./protocol").LobbyAnimationState;
+        ready: boolean;
     }[];
     loadGLB(url: string, name?: string): Promise<import("@babylonjs/core").AbstractMesh>;
     onOverlay(id: string, handler: (payload: unknown) => void): void;
@@ -101,6 +112,11 @@ export declare class PlatformLobby {
     setMoveStick(x: number, z: number): void;
     setLookStick(x: number, y: number): void;
     addLookDelta(dx: number, dy: number): void;
+    /** Game-side camera distance (third-person orbit radius). */
+    setCameraOrbit(radius: number, limits?: {
+        lower?: number;
+        upper?: number;
+    }): void;
     tryPlaygroundInteract(): boolean;
     getLocalController(): LocalPlayerController;
     noteMusicToggle(): void;

@@ -1,79 +1,151 @@
+import { pickAvatarClip } from './avatar-clips';
 import { AvatarFactory } from './avatar-factory';
-const CLIP_MAP = {
-    idle: ['idle', 'Idle'],
-    walk: ['walk', 'Walk', 'walking'],
-    run: ['run', 'Run', 'sprint', 'Sprint'],
-    jump: ['jump', 'Jump'],
-    fall: ['fall', 'Fall', 'falling'],
-};
-function applyLimbRotation(rig, limb, dx, dy = 0, dz = 0) {
+import { HumanoidPose, RUN_GAIT, WALK_GAIT, approach, cloneGait, footContacts, gaitFrequency, lerpGait, writeAirPose, writeGaitPose, writeIdlePose, writeSlidePose, } from './humanoid-locomotion';
+import { applyHumanoidPose } from './humanoid-rig';
+/** Nominal speeds used to normalise cadence when a caller reports no velocity. */
+const DEFAULT_WALK_SPEED = 10.5;
+const DEFAULT_RUN_SPEED = 13.65;
+/** Blend times, seconds. Start-up is a touch faster than wind-down. */
+const BLEND_IN = 0.11;
+const BLEND_OUT = 0.16;
+const RUN_BLEND = 0.2;
+const AIR_BLEND = 0.07;
+const SLIDE_BLEND = 0.12;
+/**
+ * Legacy 6-pivot fallback (box avatars and GLBs whose skeleton could not be
+ * mapped). Character-space angles → local Euler on plain pivot nodes.
+ */
+function applySimplePose(rig, pose) {
+    setPivot(rig, 'torso', pose.pitch('chest') + pose.pitch('spine'), pose.yaw('chest'), pose.roll('chest'));
+    setPivot(rig, 'head', pose.pitch('head'), pose.yaw('head'), pose.roll('head'));
+    setPivot(rig, 'armL', pose.pitch('upperArmL'), pose.yaw('upperArmL'), pose.roll('upperArmL'));
+    setPivot(rig, 'armR', pose.pitch('upperArmR'), pose.yaw('upperArmR'), pose.roll('upperArmR'));
+    setPivot(rig, 'legL', pose.pitch('thighL'), pose.yaw('thighL'), pose.roll('thighL'));
+    setPivot(rig, 'legR', pose.pitch('thighR'), pose.yaw('thighR'), pose.roll('thighR'));
+}
+function setPivot(rig, limb, pitch, yaw, roll) {
     const node = rig[limb];
+    // Pivots hang down the -Y axis, so a forward swing is a negative X rotation.
+    const x = -pitch;
+    const y = -yaw;
     const rest = rig.restRotation?.[limb];
     if (rig.boneDriven && rest) {
         node.rotationQuaternion = null;
-        node.rotation.set(rest.x + dx, rest.y + dy, rest.z + dz);
+        node.rotation.set(rest.x + x, rest.y + y, rest.z + roll);
         return;
     }
-    node.rotation.set(dx, dy, dz);
+    node.rotation.set(x, y, roll);
 }
 export class HumanoidAnimator {
     root;
     time = 0;
-    weight = 0;
-    lastSin = 0;
+    phase = 0;
+    walkWeight = 0;
+    runWeight = 0;
+    airWeight = 0;
+    slideWeight = 0;
+    speed = 0;
+    pendingContacts = 0;
     clipStepAcc = 0;
+    slideMode = false;
+    walkSpeedRef = DEFAULT_WALK_SPEED;
+    runSpeedRef = DEFAULT_RUN_SPEED;
+    pose = new HumanoidPose();
+    gait = cloneGait(WALK_GAIT);
     groups;
+    activeClip = null;
     constructor(root, animationGroups) {
         this.root = root;
         this.groups = animationGroups?.length ? animationGroups : null;
     }
-    slideMode = false;
     setSlideMode(on) {
         this.slideMode = on;
     }
-    update(dt, state, grounded) {
-        const rig = AvatarFactory.getRig(this.root);
+    /** Lets cadence be normalised against the lobby's configured move speeds. */
+    setSpeedReference(walkSpeed, runSpeed) {
+        if (walkSpeed > 0.1)
+            this.walkSpeedRef = walkSpeed;
+        if (runSpeed > 0.1)
+            this.runSpeedRef = runSpeed;
+    }
+    /**
+     * @param speed horizontal speed in units/s; drives stride cadence so the feet
+     *              cannot scrub the floor. Omit to fall back to nominal speeds.
+     */
+    update(dt, state, grounded, speed) {
         if (this.groups) {
             this.playClip(state);
             return;
         }
+        const rig = AvatarFactory.getRig(this.root);
         if (!rig)
             return;
-        // Unskinned rigid GLB: no limb bones — keep visual stable.
+        const humanoid = rig.humanoid ?? null;
+        // Unskinned rigid GLB: no limb bones — keep the visual stable.
         if (this.root.metadata?.rigidGlb && !rig.boneDriven) {
             rig.visual.position.y = 0;
             return;
         }
-        this.time += dt;
-        if (this.slideMode) {
-            this.poseSlide(rig);
-            return;
-        }
+        const step = dt > 0.1 ? 0.1 : dt;
+        this.time += step;
         const moving = state === 'walk' || state === 'run';
-        const targetWeight = moving ? 1 : 0;
-        this.weight += (targetWeight - this.weight) * Math.min(1, dt * 10);
-        if (state === 'jump' || (state === 'fall' && !grounded)) {
-            this.poseAir(rig, state === 'jump');
-            return;
+        const airborne = state === 'jump' || (state === 'fall' && !grounded);
+        const running = state === 'run';
+        this.walkWeight = approach(this.walkWeight, moving ? 1 : 0, moving ? BLEND_IN : BLEND_OUT, step);
+        this.runWeight = approach(this.runWeight, running ? 1 : 0, RUN_BLEND, step);
+        this.airWeight = approach(this.airWeight, airborne ? 1 : 0, AIR_BLEND, step);
+        this.slideWeight = approach(this.slideWeight, this.slideMode ? 1 : 0, SLIDE_BLEND, step);
+        const reference = this.walkSpeedRef + (this.runSpeedRef - this.walkSpeedRef) * this.runWeight;
+        const measured = speed !== undefined
+            ? speed
+            : moving
+                ? running
+                    ? this.runSpeedRef
+                    : this.walkSpeedRef
+                : 0;
+        // Smooth the reported speed so accel/decel does not jitter the cadence.
+        this.speed = approach(this.speed, measured, 0.12, step);
+        lerpGait(this.gait, WALK_GAIT, RUN_GAIT, this.runWeight);
+        const ratio = reference > 0.01 ? this.speed / reference : 0;
+        const advance = gaitFrequency(this.speed, reference, this.gait) * step;
+        if (this.walkWeight > 0.02) {
+            this.pendingContacts += footContacts(this.phase, advance);
+            this.phase += advance;
+            if (this.phase >= 1 || this.phase < 0)
+                this.phase -= Math.floor(this.phase);
         }
-        if (this.weight < 0.02) {
-            this.poseIdle(rig);
-            return;
+        const groundWeight = (1 - this.airWeight) * (1 - this.slideWeight);
+        // Shorter steps at low speed, full stride at cruising speed.
+        const strideScale = 0.55 + 0.45 * (ratio < 0.4 ? 0.4 : ratio > 1 ? 1 : ratio);
+        const gaitWeight = this.walkWeight * groundWeight * strideScale;
+        this.pose.reset();
+        writeIdlePose(this.pose, this.time, groundWeight * (1 - this.walkWeight));
+        writeGaitPose(this.pose, this.phase, this.gait, gaitWeight);
+        if (this.airWeight > 0.002) {
+            writeAirPose(this.pose, state === 'jump', this.airWeight * (1 - this.slideWeight));
         }
-        const run = state === 'run';
-        const freq = run ? 9.2 : 6.2;
-        const swing = this.weight * (run ? 0.95 : 0.62);
-        const t = this.time * freq;
-        this.poseLocomotion(rig, t, swing, run);
+        if (this.slideWeight > 0.002)
+            writeSlidePose(this.pose, this.slideWeight);
+        if (humanoid) {
+            applyHumanoidPose(humanoid, this.pose);
+        }
+        else {
+            applySimplePose(rig, this.pose);
+            if (!rig.boneDriven)
+                rig.torso.position.y = 1.18;
+        }
+        rig.visual.position.y = this.pose.bob;
     }
-    /** True on each visual foot plant (walk / run). */
+    /** True on each visual foot plant (walk / run), for footstep audio. */
     takeFootPlant(state, dt = 1 / 60) {
         if (state !== 'walk' && state !== 'run') {
-            this.lastSin = 0;
+            this.pendingContacts = 0;
             this.clipStepAcc = 0;
             return false;
         }
-        if (this.groups) {
+        const rig = AvatarFactory.getRig(this.root);
+        const posed = !this.groups && !(this.root.metadata?.rigidGlb && !rig?.boneDriven);
+        if (!posed) {
             this.clipStepAcc += dt;
             const interval = state === 'run' ? 0.28 : 0.42;
             if (this.clipStepAcc >= interval) {
@@ -82,84 +154,38 @@ export class HumanoidAnimator {
             }
             return false;
         }
-        if (this.root.metadata?.rigidGlb && !AvatarFactory.getRig(this.root)?.boneDriven) {
-            this.clipStepAcc += dt;
-            const interval = state === 'run' ? 0.28 : 0.42;
-            if (this.clipStepAcc >= interval) {
-                this.clipStepAcc = 0;
-                return true;
-            }
+        if (this.pendingContacts <= 0)
             return false;
-        }
-        const freq = state === 'run' ? 9.2 : 6.2;
-        const s = Math.sin(this.time * freq);
-        const planted = (this.lastSin <= 0 && s > 0) || (this.lastSin >= 0 && s < 0);
-        this.lastSin = s;
-        return planted && this.weight > 0.35;
+        this.pendingContacts--;
+        return this.walkWeight > 0.35;
     }
     playClip(state) {
         if (!this.groups)
             return;
-        const names = CLIP_MAP[state];
-        let match = this.groups.find((g) => names.some((n) => g.name.toLowerCase().includes(n.toLowerCase())));
-        if (!match)
-            match = this.groups.find((g) => g.name.toLowerCase().includes('idle')) ?? this.groups[0];
+        const match = pickAvatarClip(this.groups, state);
+        // No Idle/Jump clip (common for Meshy walk-only packs) → freeze bind pose.
+        if (!match) {
+            if (!this.activeClip && !this.groups.some((g) => g.isPlaying))
+                return;
+            for (const g of this.groups) {
+                if (g.isPlaying)
+                    g.stop();
+                g.reset();
+            }
+            this.activeClip = null;
+            return;
+        }
+        if (this.activeClip === match && match.isPlaying)
+            return;
         for (const g of this.groups) {
-            if (g === match) {
-                if (!g.isPlaying)
-                    g.start(true);
-            }
-            else if (g.isPlaying) {
+            if (g === match)
+                continue;
+            if (g.isPlaying)
                 g.stop();
-            }
         }
-    }
-    poseIdle(rig) {
-        const breathe = Math.sin(this.time * 2.1) * 0.015;
-        applyLimbRotation(rig, 'torso', breathe * 0.4, 0, 0);
-        if (!rig.boneDriven) {
-            rig.torso.position.y = 1.18 + breathe;
-        }
-        applyLimbRotation(rig, 'head', breathe * 0.2, 0, 0);
-        applyLimbRotation(rig, 'armL', 0.08, 0, 0.06);
-        applyLimbRotation(rig, 'armR', 0.08, 0, -0.06);
-        applyLimbRotation(rig, 'legL', 0, 0, 0.02);
-        applyLimbRotation(rig, 'legR', 0, 0, -0.02);
-        rig.visual.position.y = 0;
-    }
-    poseLocomotion(rig, t, swing, run) {
-        const leg = Math.sin(t) * swing;
-        const arm = Math.sin(t) * swing * (run ? 0.85 : 0.7);
-        const bounce = Math.abs(Math.sin(t)) * (run ? 0.055 : 0.03) * this.weight;
-        const torsoYaw = Math.sin(t) * 0.07 * this.weight;
-        applyLimbRotation(rig, 'legL', leg, 0, 0);
-        applyLimbRotation(rig, 'legR', -leg, 0, 0);
-        applyLimbRotation(rig, 'armL', -arm, 0, 0.08);
-        applyLimbRotation(rig, 'armR', arm, 0, -0.08);
-        applyLimbRotation(rig, 'torso', run ? 0.12 : 0.04, torsoYaw, 0);
-        if (!rig.boneDriven) {
-            rig.torso.position.y = 1.18;
-        }
-        applyLimbRotation(rig, 'head', 0, -torsoYaw * 0.4, 0);
-        rig.visual.position.y = bounce * 0.35;
-    }
-    poseAir(rig, _jumping) {
-        applyLimbRotation(rig, 'legL', -0.45, 0, 0);
-        applyLimbRotation(rig, 'legR', -0.32, 0, 0);
-        applyLimbRotation(rig, 'armL', 0.35, 0, 0.25);
-        applyLimbRotation(rig, 'armR', 0.45, 0, -0.25);
-        applyLimbRotation(rig, 'torso', -0.08, 0, 0);
-        applyLimbRotation(rig, 'head', 0, 0, 0);
-        rig.visual.position.y = 0;
-    }
-    poseSlide(rig) {
-        applyLimbRotation(rig, 'torso', 0.62, 0, 0.06);
-        applyLimbRotation(rig, 'head', -0.28, 0, 0);
-        applyLimbRotation(rig, 'armL', 0.95, 0, 0.35);
-        applyLimbRotation(rig, 'armR', 1.05, 0, -0.35);
-        applyLimbRotation(rig, 'legL', 0.22, 0, 0.08);
-        applyLimbRotation(rig, 'legR', 0.38, 0, -0.05);
-        rig.visual.position.y = -0.04;
+        if (!match.isPlaying)
+            match.start(true);
+        this.activeClip = match;
     }
 }
 //# sourceMappingURL=humanoid-animator.js.map

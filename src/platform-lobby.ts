@@ -6,8 +6,11 @@ import {
   sanitizeLobbyDataChannel,
   sanitizeLobbyDataPayload,
   type LobbyEmoteKind,
+  type LobbyPlayerState,
+  type LobbyFeatureFlags,
 } from './protocol';
 import { AvatarFactory } from './avatar-factory';
+import { ensureDracoDecoder } from './draco';
 import { LocalPlayerController } from './local-player-controller';
 import { NetworkClient } from './network-client';
 import { PlatformBridge } from './platform-bridge';
@@ -19,6 +22,7 @@ import { applyStarterLayout as applyStarterLayoutFn, type StarterLayoutConfig } 
 import { applyPlazaLayout as applyPlazaLayoutFn, type PlazaLayoutConfig } from './plaza-layout';
 import { applyLobbyCollisions } from './lobby-colliders';
 import { attachLobbyDebug, buildLobbyDebugReport } from './lobby-debug';
+import { attachLobbyPerfDiag, lobbyPerfNoteLocalUpdate, isLobbyPerfDiagEnabled } from './lobby-perf-diag';
 import { attachPlayground, type PlaygroundSystem } from './playground/playground-system';
 import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
@@ -39,7 +43,6 @@ import type {
   PlatformLobbyDevOptions,
   Vector3,
 } from './types';
-import type { LobbyFeatureFlags } from './protocol';
 
 const DEFAULT_LOBBY_FEATURES: LobbyFeatureFlags = {
   chatEnabled: true,
@@ -139,7 +142,11 @@ export class PlatformLobby {
   }
 
   private async bootstrap() {
-    await ensureLobbyPersianFont();
+    // Font CDN must never block first paint (can hang >60s on filtered networks).
+    void ensureLobbyPersianFont();
+    // Warm Draco WASM in parallel with scene setup (HTTP-cached on repeat visits).
+    void ensureDracoDecoder();
+
     this.sceneManager = new SceneManager(this.canvas, this.config);
 
     const layout = this.config;
@@ -149,41 +156,24 @@ export class PlatformLobby {
     );
     const spawnPose = resolveSpawnPose(layout, provisionalSlot);
 
-    this.localAvatar = await AvatarFactory.createAsync(
-      this.sceneManager.scene,
-      this.init.avatar,
-      'local-player',
-      this.init.user.displayName,
-      this.init.user.username,
-      { collider: true },
-    );
-    this.localController = new LocalPlayerController(
-      this.localAvatar,
-      spawnPose.position,
-      this.sceneManager.scene,
-      () => this.sceneManager.camera,
-      this.config,
-    );
-    this.localController.teleportTo(spawnPose.position, spawnPose.rotationY);
-    this.localController.setSounds(this.music);
-    this.canvas.addEventListener('pointerdown', () => {
-      void this.music.unlock(true);
-    });
     this.remotePlayers = new RemotePlayerManager(this.sceneManager.scene, this.init.user.id);
-
     window.addEventListener('resize', this.resizeHandler);
 
-    if (this.config.enableMultiplayer !== false && this.init.session.token !== 'dev-token') {
-      this.connectNetwork();
-    }
-
+    // Show sky/ground immediately — do not freeze the canvas while the local GLB parses.
     let lastTime = performance.now();
     this.sceneManager.startRenderLoop(() => {
+      if (this.destroyed) return;
       const now = performance.now();
       const dt = Math.min(0.05, (now - lastTime) / 1000);
       lastTime = now;
 
+      if (!this.localController) return;
+
+      const tLocal = isLobbyPerfDiagEnabled() ? performance.now() : 0;
       const state = this.localController.update(dt);
+      if (isLobbyPerfDiagEnabled()) {
+        lobbyPerfNoteLocalUpdate(performance.now() - tLocal);
+      }
       this.playground?.update(dt, this.localController, state.position);
       this.sceneManager.followPlayer(
         this.localAvatar.position,
@@ -215,6 +205,33 @@ export class PlatformLobby {
       this.remotePlayers.update(dt);
     });
 
+    this.localAvatar = await AvatarFactory.createAsync(
+      this.sceneManager.scene,
+      this.init.avatar,
+      'local-player',
+      this.init.user.displayName,
+      this.init.user.username,
+      { collider: true },
+    );
+    if (this.destroyed) return;
+
+    this.localController = new LocalPlayerController(
+      this.localAvatar,
+      spawnPose.position,
+      this.sceneManager.scene,
+      () => this.sceneManager.camera,
+      this.config,
+    );
+    this.localController.teleportTo(spawnPose.position, spawnPose.rotationY);
+    this.localController.setSounds(this.music);
+    this.canvas.addEventListener('pointerdown', () => {
+      void this.music.unlock(true);
+    });
+
+    if (this.config.enableMultiplayer !== false && this.init.session.token !== 'dev-token') {
+      this.connectNetwork();
+    }
+
     this.emit('ready', undefined);
     this.ready = true;
     const uiMessages = this.config.uiMessages;
@@ -239,6 +256,50 @@ export class PlatformLobby {
     for (const plugin of this.plugins) {
       void plugin.setup(this);
     }
+
+    if (typeof window !== 'undefined') {
+      this.attachDebug(window);
+      attachLobbyPerfDiag(
+        () => this.sceneManager.scene,
+        () => this.sceneManager.engine,
+        window,
+      );
+      window.__OYNA360_SDK_BUILD__ = 'avatar-opt-v11';
+      console.info('[lobby-sdk] build avatar-opt-v11');
+    }
+  }
+
+  /**
+   * DIAG ONLY: upsert a synthetic remote player for performance measurement.
+   * Does not change multiplayer protocol behavior.
+   */
+  diagUpsertRemote(player: LobbyPlayerState) {
+    this.remotePlayers.upsert(player);
+  }
+
+  /** DIAG ONLY: remove a synthetic/remote player used for measurement. */
+  diagRemoveRemote(userId: string) {
+    this.remotePlayers.remove(userId);
+  }
+
+  /** DIAG ONLY: wait until a remote userId appears in the remote list (or timeout). */
+  async diagWaitRemote(userId: string, timeoutMs = 60_000) {
+    const start = performance.now();
+    while (performance.now() - start < timeoutMs) {
+      if (this.remotePlayers.list().some((p) => p.userId === userId)) return true;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return false;
+  }
+
+  /** DIAG ONLY: wait until remote GLB/placeholder swap finished. */
+  async diagWaitRemoteReady(userId: string, timeoutMs = 60_000) {
+    const start = performance.now();
+    while (performance.now() - start < timeoutMs) {
+      if (this.remotePlayers.isRemoteReady(userId)) return true;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    return false;
   }
 
   private connectNetwork() {
@@ -540,6 +601,20 @@ export class PlatformLobby {
 
   addLookDelta(dx: number, dy: number) {
     this.sceneManager.thirdPerson.addLookDelta(dx, dy);
+  }
+
+  /** Game-side camera distance (third-person orbit radius). */
+  setCameraOrbit(radius: number, limits?: { lower?: number; upper?: number }) {
+    const tp = this.sceneManager.thirdPerson;
+    const cam = tp.camera;
+    if (typeof limits?.lower === 'number') cam.lowerRadiusLimit = limits.lower;
+    if (typeof limits?.upper === 'number') cam.upperRadiusLimit = limits.upper;
+    const clamped = Math.min(
+      cam.upperRadiusLimit ?? 16,
+      Math.max(cam.lowerRadiusLimit ?? 2.2, radius),
+    );
+    tp.wantedRadius = clamped;
+    cam.radius = clamped;
   }
 
   tryPlaygroundInteract() {

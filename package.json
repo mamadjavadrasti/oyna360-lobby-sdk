@@ -1,5 +1,5 @@
 {
-  "name": "@platform/lobby-sdk",
+  "name": "@oyna360/lobby-sdk",
   "version": "0.1.0",
   "description": "oyna360 3D Lobby SDK for game developers (Babylon.js). Protocol is bundled — do not install lobby-protocol.",
   "license": "MIT",
@@ -34,7 +34,7 @@
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
-    "lint": "echo \"No lint configured for @platform/lobby-sdk\"",
+    "lint": "echo \"No lint configured for @oyna360/lobby-sdk\"",
     "check:protocol": "node ../../scripts/sync-lobby-protocol.mjs --check"
   },
   "dependencies": {

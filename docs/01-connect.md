@@ -2,7 +2,7 @@
 
 لابی از سمت پلتفرم آماده است. پلتفرم بازیکن را داخل گیم‌پلی نمی‌گذارد. هویت، آواتار و اتاق را می‌دهد؛ بازی ظاهر، پورتال و شروع مسابقه را خودش می‌سازد.
 
-همین پکیج `@platform/lobby-sdk` کافی است. `lobby-protocol` لازم نیست.
+همین پکیج `@oyna360/lobby-sdk` کافی است. `lobby-protocol` لازم نیست.
 
 اول استارتر را کپی کنید، از صفر ننویسید. جزئیات و تله‌ها: [lobby-sdk-integration.md](../../../docs/lobby-sdk-integration.md#چطور-از-استارتر-استفاده-کنید).
 
@@ -25,7 +25,7 @@
 
 1. در روت پلتفرم: `npm run lobby:demo` → http://localhost:5174
 2. کپی `apps/examples/lobby-demo/src/lobby-config.ts` و الگوی `main.ts`
-3. همین SDK را بعد از `pnpm --filter @platform/lobby-sdk build` به بازی بدهید (workspace داخل ریپوی بازی، یا تگ GitHub با `dist` تازه)
+3. همین SDK را بعد از `pnpm --filter @oyna360/lobby-sdk build` به بازی بدهید (workspace داخل ریپوی بازی، یا تگ GitHub با `dist` تازه)
 4. به فولدر پلتفرم روی دیسک لوکال alias ندهید
 5. تست از `/play/{slug}` با `entryUrl` همان پورت بازی
 
@@ -38,7 +38,7 @@
 1. بازی روی URL عمومی (یا `http://localhost:PORT`) host شده باشد.
 2. در ادمین: `slug` + `entryUrl` + `allowedOrigins`
 3. بازیکن از `/play/{slug}` وارد شود و لاگین باشد.
-4. `@platform/lobby-sdk` هم‌نسخهٔ استارتر + `@babylonjs/core`
+4. `@oyna360/lobby-sdk` هم‌نسخهٔ استارتر + `@babylonjs/core`
 
 ---
 
@@ -58,7 +58,7 @@
 ## کد حداقل
 
 ```typescript
-import { PlatformLobby } from '@platform/lobby-sdk';
+import { PlatformLobby } from '@oyna360/lobby-sdk';
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
 const lobby = await PlatformLobby.createFromPlatform(canvas, {

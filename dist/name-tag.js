@@ -38,6 +38,8 @@ export function attachNameTag(scene, parent, displayName, username, id) {
     mat.useAlphaFromDiffuseTexture = true;
     mat.transparencyMode = 2;
     plane.material = mat;
+    plane.metadata = { ...(plane.metadata ?? {}), isNameTag: true };
+    mat.metadata = { ...(mat.metadata ?? {}), isNameTag: true };
     return plane;
 }
 function roundRect(ctx, x, y, width, height, radius) {

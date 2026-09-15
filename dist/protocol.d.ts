@@ -3,7 +3,7 @@
  * Do not edit by hand. Run: node scripts/sync-lobby-protocol.mjs
  * (scale roadmap 9.1)
  */
-/** Lobby SDK protocol version — keep in sync with @platform/lobby-sdk */
+/** Lobby SDK protocol version — keep in sync with @oyna360/lobby-sdk */
 export declare const LOBBY_PROTOCOL_VERSION = "0.1.0";
 export type AvatarPresetKind = 'procedural' | 'glb';
 export interface Vector3 {
