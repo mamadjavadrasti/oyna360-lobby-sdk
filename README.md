@@ -7,7 +7,7 @@
 
 **نسخه پکیج:** مطابق GitHub tag · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
 
-> اتصال اولیه به پلتفرم (سشن / Authorize) کار [`@platform/game-sdk`](https://github.com/mamadjavadrasti/oyna360-game-sdk) است. این SDK لابی را اجرا می‌کند، لاگین نمی‌کند.
+> اتصال اولیه به پلتفرم (سشن / Authorize) کار [`@platform/game-sdk`](https://github.com/mamadjavadrasti/playhub-game-sdk) است. این SDK لابی را اجرا می‌کند، لاگین نمی‌کند.
 
 ---
 

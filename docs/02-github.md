@@ -36,6 +36,6 @@ rm -rf node_modules/.vite
 lobby-sdk وابسته به game-sdk نیست؛ ولی در عمل برای Context واقعی هر دو را نصب کنید:
 
 ```bash
-npm install github:mamadjavadrasti/oyna360-game-sdk#v0.5.0
+npm install github:mamadjavadrasti/playhub-game-sdk#v0.5.0
 npm install github:mamadjavadrasti/oyna360-lobby-sdk#master @babylonjs/core
 ```
