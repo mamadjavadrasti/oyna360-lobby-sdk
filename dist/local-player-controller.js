@@ -1,6 +1,6 @@
 import { Quaternion, Ray, Vector3 } from '@babylonjs/core';
 import { syncCharacterObstacle } from './lobby-colliders';
-import { AvatarFactory } from './avatar-factory';
+import { AvatarInstance } from './avatar-instance';
 import { HumanoidAnimator } from './humanoid-animator';
 const MOVE_CODES = new Set([
     'KeyW',
@@ -35,8 +35,10 @@ function samplePath(path, t) {
     const b = path[i + 1];
     return new Vector3(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, a.z + (b.z - a.z) * f);
 }
+function asAvatarInstance(avatar) {
+    return avatar instanceof AvatarInstance ? avatar : AvatarInstance.fromRoot(avatar);
+}
 export class LocalPlayerController {
-    root;
     scene;
     getCamera;
     codes = new Set();
@@ -61,25 +63,31 @@ export class LocalPlayerController {
     walkSpeed;
     runMultiplier;
     animator;
+    avatar;
     audio = null;
     disposed = false;
     spawn;
-    constructor(root, spawn, scene, getCamera, config = {}) {
-        this.root = root;
+    ignoreMeshesCache = null;
+    constructor(avatar, spawn, scene, getCamera, config = {}) {
         this.scene = scene;
         this.getCamera = getCamera;
+        this.avatar = asAvatarInstance(avatar);
         this.spawn = { ...spawn };
         // Walk ≈ former default sprint (6.2×1.7); sprint a bit faster than that.
         this.walkSpeed = config.playerSpeed ?? 10.5;
         this.runMultiplier = config.runMultiplier ?? 1.3;
-        this.root.position.set(spawn.x, spawn.y, spawn.z);
-        this.animator = new HumanoidAnimator(root, AvatarFactory.getAnimationGroups(root));
+        this.avatar.root.position.set(spawn.x, spawn.y, spawn.z);
+        this.animator = new HumanoidAnimator(this.avatar);
         this.animator.setSpeedReference(this.walkSpeed, this.walkSpeed * this.runMultiplier);
         this.yaw = 0;
         this.syncVisualYaw();
         window.addEventListener('keydown', this.onKeyDown, true);
         window.addEventListener('keyup', this.onKeyUp, true);
         window.addEventListener('blur', this.onBlur);
+    }
+    /** Back-compat: controllers historically exposed the Babylon root node. */
+    get root() {
+        return this.avatar.root;
     }
     setStick(x, z) {
         const mag = Math.hypot(x, z);
@@ -372,8 +380,8 @@ export class LocalPlayerController {
         this.grounded = false;
     }
     syncVisualYaw() {
-        const rig = AvatarFactory.getRig(this.root);
-        const visual = rig?.visual ?? this.root;
+        const rig = this.avatar.rig;
+        const visual = rig?.visual ?? this.avatar.root;
         visual.rotation.set(0, 0, 0);
         visual.rotationQuaternion = Quaternion.RotationYawPitchRoll(this.yaw, 0, 0);
     }
@@ -386,12 +394,19 @@ export class LocalPlayerController {
         };
     }
     getIgnoreMeshes() {
+        // Camera occlusion runs every frame — do not rebuild getChildMeshes() each call.
+        if (this.ignoreMeshesCache && this.ignoreMeshesCache.length > 0) {
+            const stillOk = this.ignoreMeshesCache.every((m) => m && !m.isDisposed());
+            if (stillOk)
+                return this.ignoreMeshesCache;
+        }
         const meshes = [];
         if ('getChildMeshes' in this.root) {
             meshes.push(...this.root.getChildMeshes(false));
         }
         if (this.root.ellipsoid)
             meshes.push(this.root);
+        this.ignoreMeshesCache = meshes;
         return meshes;
     }
     setPosition(pos) {

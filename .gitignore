@@ -9,3 +9,11 @@ lobby-sdk.zip
 lobby-sdk-dist.tar
 .perf-diag-test/
 
+
+.turbo/
+.*-diag-test/
+.avatar-render-diag-test/
+.mobile-avatar-diag-test/
+.plaza-diag-test/
+.real-device-avatar-diag-test/
+

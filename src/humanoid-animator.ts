@@ -1,7 +1,8 @@
-import type { AnimationGroup, TransformNode } from '@babylonjs/core';
+import type { AnimationGroup } from '@babylonjs/core';
 import type { LobbyAnimationState } from './protocol';
 import { pickAvatarClip } from './avatar-clips';
-import { AvatarFactory, type AvatarRig } from './avatar-factory';
+import type { AvatarRig } from './avatar-factory';
+import type { AvatarInstance } from './avatar-instance';
 import {
   HumanoidPose,
   RUN_GAIT,
@@ -82,10 +83,11 @@ export class HumanoidAnimator {
   private activeClip: AnimationGroup | null = null;
 
   constructor(
-    private root: TransformNode,
+    private avatar: AvatarInstance,
     animationGroups?: AnimationGroup[],
   ) {
-    this.groups = animationGroups?.length ? animationGroups : null;
+    const groups = animationGroups?.length ? animationGroups : avatar.animationGroups;
+    this.groups = groups.length ? groups : null;
   }
 
   setSlideMode(on: boolean) {
@@ -108,12 +110,12 @@ export class HumanoidAnimator {
       return;
     }
 
-    const rig = AvatarFactory.getRig(this.root);
+    const rig = this.avatar.rig;
     if (!rig) return;
     const humanoid = rig.humanoid ?? null;
 
     // Unskinned rigid GLB: no limb bones — keep the visual stable.
-    if (this.root.metadata?.rigidGlb && !rig.boneDriven) {
+    if (this.avatar.rigidGlb && !rig.boneDriven) {
       rig.visual.position.y = 0;
       return;
     }
@@ -181,8 +183,8 @@ export class HumanoidAnimator {
       this.clipStepAcc = 0;
       return false;
     }
-    const rig = AvatarFactory.getRig(this.root);
-    const posed = !this.groups && !(this.root.metadata?.rigidGlb && !rig?.boneDriven);
+    const rig = this.avatar.rig;
+    const posed = !this.groups && !(this.avatar.rigidGlb && !rig?.boneDriven);
     if (!posed) {
       this.clipStepAcc += dt;
       const interval = state === 'run' ? 0.28 : 0.42;

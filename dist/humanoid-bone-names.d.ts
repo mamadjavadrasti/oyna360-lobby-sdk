@@ -28,8 +28,8 @@ export declare function classifyBone<T extends BoneRef>(ref: T): ClassifiedBone<
 /** Joints without which no believable walk cycle is possible. */
 export declare const REQUIRED_JOINTS: HumanoidJoint[];
 export declare function resolveHumanoidJoints<T extends BoneRef>(refs: readonly T[]): {
-    joints: Partial<Record<"hips" | "spine" | "chest" | "neck" | "head" | "shoulderL" | "shoulderR" | "upperArmL" | "upperArmR" | "foreArmL" | "foreArmR" | "handL" | "handR" | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR", T>>;
-    missing: ("hips" | "spine" | "chest" | "neck" | "head" | "shoulderL" | "shoulderR" | "upperArmL" | "upperArmR" | "foreArmL" | "foreArmR" | "handL" | "handR" | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR")[];
+    joints: Partial<Record<"head" | "hips" | "spine" | "chest" | "neck" | "shoulderL" | "shoulderR" | "upperArmL" | "upperArmR" | "foreArmL" | "foreArmR" | "handL" | "handR" | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR", T>>;
+    missing: ("head" | "hips" | "spine" | "chest" | "neck" | "shoulderL" | "shoulderR" | "upperArmL" | "upperArmR" | "foreArmL" | "foreArmR" | "handL" | "handR" | "thighL" | "thighR" | "shinL" | "shinR" | "footL" | "footR")[];
     classified: ClassifiedBone<T>[];
 };
 //# sourceMappingURL=humanoid-bone-names.d.ts.map

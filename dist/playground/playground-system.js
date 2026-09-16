@@ -39,6 +39,8 @@ export class PlaygroundSystem {
     particleBurst = null;
     keyHandler = null;
     slidePath;
+    trampPad = null;
+    trampOrbs = [];
     constructor(lobby) {
         this.lobby = lobby;
         const scene = lobby.getScene();
@@ -46,6 +48,13 @@ export class PlaygroundSystem {
         this.slidePath = buildSlidePath();
         this.ringMat = scene.getMaterialByName('pg-tramp-ring-mat');
         this.padMat = scene.getMaterialByName('pg-tramp-pad-mat');
+        this.trampPad = scene.getMeshByName('playground-trampoline-pad');
+        this.trampOrbs = [];
+        for (let i = 0; i < 6; i++) {
+            const orb = scene.getMeshByName(`playground-trampoline-orb-${i}`);
+            if (orb)
+                this.trampOrbs.push(orb);
+        }
         this.setupParticles(scene);
         this.setupZones();
         this.setupKeyboard();
@@ -160,20 +169,22 @@ export class PlaygroundSystem {
     animate(dt) {
         this.trampPulse += dt * 3.2;
         const bounce = 0.38 + Math.sin(this.trampPulse) * 0.025;
-        const pad = this.lobby.getScene().getMeshByName('playground-trampoline-pad');
-        if (pad)
-            pad.position.y = bounce;
+        if (this.trampPad && !this.trampPad.isDisposed()) {
+            this.trampPad.position.y = bounce;
+        }
         const glow = 0.55 + this.trampGlow * 0.45 + Math.sin(this.trampPulse * 1.4) * 0.08;
         if (this.ringMat) {
-            this.ringMat.emissiveColor.scaleInPlace(0);
-            this.ringMat.emissiveColor = this.ringMat.diffuseColor.scale(glow);
+            const c = this.ringMat.diffuseColor;
+            this.ringMat.emissiveColor.set(c.r * glow, c.g * glow, c.b * glow);
         }
         if (this.padMat) {
-            this.padMat.emissiveColor = this.padMat.diffuseColor.scale(0.35 + this.trampGlow * 0.5);
+            const g = 0.35 + this.trampGlow * 0.5;
+            const c = this.padMat.diffuseColor;
+            this.padMat.emissiveColor.set(c.r * g, c.g * g, c.b * g);
         }
-        for (let i = 0; i < 6; i++) {
-            const orb = this.lobby.getScene().getMeshByName(`playground-trampoline-orb-${i}`);
-            if (!orb)
+        for (let i = 0; i < this.trampOrbs.length; i++) {
+            const orb = this.trampOrbs[i];
+            if (!orb || orb.isDisposed())
                 continue;
             orb.position.y = 0.55 + Math.sin(this.trampPulse + i * 0.9) * 0.06;
         }

@@ -1,5 +1,6 @@
 import type { Scene } from '@babylonjs/core';
 import type { LobbyAnimationState, LobbyEmoteKind, LobbyPlayerState } from './protocol';
+import { type RemoteAvatarLifecycle } from './avatar-instance';
 export declare class RemotePlayerManager {
     private readonly scene;
     private readonly selfUserId;
@@ -24,6 +25,7 @@ export declare class RemotePlayerManager {
         username: string;
     } | null;
     isRemoteReady(userId: string): boolean;
+    getLifecycle(userId: string): RemoteAvatarLifecycle;
     private setDrawVisible;
     update(dt: number): void;
     getPosition(userId: string): LobbyPlayerState['position'] | null;
@@ -39,6 +41,7 @@ export declare class RemotePlayerManager {
         rotationY: number;
         animation: LobbyAnimationState;
         ready: boolean;
+        lifecycle: RemoteAvatarLifecycle;
     }[];
     dispose(): void;
 }

@@ -21,19 +21,29 @@ if (typeof window !== 'undefined') {
 export class PlatformBridge {
   static waitForInit(timeoutMs = INIT_TIMEOUT_MS): Promise<PlatformInitMessage> {
     return new Promise((resolve, reject) => {
-      if (window.parent === window) {
-        reject(new Error('Not running inside platform iframe'));
-        return;
-      }
-
+      // Direct Development: game-sdk may have already published platform:init on this window.
       if (window.__OYNA360_PLATFORM_INIT__) {
         resolve(window.__OYNA360_PLATFORM_INIT__);
         return;
       }
 
+      const inIframe = (() => {
+        try {
+          return window.parent !== window;
+        } catch {
+          return true;
+        }
+      })();
+
       const timer = setTimeout(() => {
         window.removeEventListener('message', onMessage);
-        reject(new Error('Timed out waiting for platform:init'));
+        reject(
+          new Error(
+            inIframe
+              ? 'Timed out waiting for platform:init'
+              : 'Timed out waiting for platform:init — call PlatformSDK.init() first (Direct Development Mode)',
+          ),
+        );
       }, timeoutMs);
 
       const onMessage = (event: MessageEvent) => {
@@ -47,7 +57,9 @@ export class PlatformBridge {
       };
 
       window.addEventListener('message', onMessage);
-      window.parent.postMessage({ type: 'platform:lobby:ready' }, '*');
+      if (inIframe) {
+        window.parent.postMessage({ type: 'platform:lobby:ready' }, '*');
+      }
     });
   }
 
@@ -58,6 +70,7 @@ export class PlatformBridge {
         user: init.user,
         game: init.game,
         avatar: init.avatar,
+        avatarBases: init.avatarBases,
         lobby: init.lobby,
       };
     }

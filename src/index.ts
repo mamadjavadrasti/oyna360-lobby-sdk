@@ -1,7 +1,13 @@
-export const LOBBY_SDK_BUILD = 'avatar-opt-v11';
+export const LOBBY_SDK_BUILD = 'avatar-join-v13';
 export { PlatformLobby } from './platform-lobby';
 export { PlatformBridge } from './platform-bridge';
 export { AvatarFactory, applyAvatarTint, applyAvatarBaseAlbedo, readBaseAlbedoUrlFromConfig } from './avatar-factory';
+export { AvatarAssetManager, assetCacheKey } from './avatar-asset-manager';
+export type { GlbInstance, AvatarBaseDef } from './avatar-asset-manager';
+export { AvatarInstance } from './avatar-instance';
+export type { RemoteAvatarLifecycle } from './avatar-instance';
+export { AvatarRigBuilder } from './avatar-rig-builder';
+export type { AvatarRig } from './avatar-rig-builder';
 export { resolveGlbUrl } from './avatar-config';
 export { attachAvatarAccessories, attachAccessoriesFromAvatarConfig } from './avatar-accessories';
 export type { EquippedAccessory, AccessoryPrimitive } from './avatar-accessories';
@@ -59,8 +65,15 @@ export {
   resetLobbyPerfDiag,
   isLobbyPerfDiagEnabled,
   diagSetAlwaysSelectAsActiveMesh,
+  diagSetAvatarDoubleSide,
   diagSetDisableUniformBuffers,
   getLobbyPerfPhaseSummary,
+  captureLobbyPerfMemory,
+  collectLobbyAvatarCosts,
+  extractSpawnTimelineFromMarks,
+  summarizeAvatarRenderCosts,
+  sampleAvatarRender,
+  captureWebGlInfo,
 } from './lobby-perf-diag';
 export type {
   LobbyPerfSnapshot,
@@ -68,7 +81,37 @@ export type {
   LobbyPerfDiagHandle,
   LobbyPerfPhase,
   LobbyPerfPhaseStat,
+  LobbyPerfPhaseDist,
+  LobbyPerfMemoryInfo,
+  LobbyPerfAvatarCost,
+  AvatarRenderCostSummary,
+  AvatarRenderSample,
 } from './lobby-perf-diag';
+export {
+  attachRealDeviceAvatarDiag,
+  captureRealDeviceInfo,
+  runRealDeviceAvatarSuite,
+} from './lobby-real-device-diag';
+export type {
+  RealDeviceLobbyBridge,
+  RealDeviceSuiteOptions,
+  RealDeviceAvatarReport,
+  RealDeviceInfo,
+} from './lobby-real-device-diag';
+export {
+  attachPlazaDiag,
+  runPlazaDiagSuite,
+  inventoryPlazaSubsystems,
+  classifyPlazaMesh,
+  PLAZA_MESH_SUBSYSTEMS,
+} from './lobby-plaza-diag';
+export type {
+  PlazaSubsystemId,
+  PlazaSubsystemInventory,
+  PlazaDiagReport,
+  PlazaDiagSuiteOptions,
+  PlazaDiagSample,
+} from './lobby-plaza-diag';
 export { attachNameTag } from './name-tag';
 export { applyStarterLayout, createPortalVisual } from './starter-layout';
 export type { StarterLayoutConfig } from './starter-layout';

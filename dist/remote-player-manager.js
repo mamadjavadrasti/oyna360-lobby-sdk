@@ -1,9 +1,12 @@
 import { Vector3 } from '@babylonjs/core';
 import { AvatarFactory } from './avatar-factory';
+import { AvatarAssetManager } from './avatar-asset-manager';
 import { HumanoidAnimator } from './humanoid-animator';
 import { removeCharacterObstacle, syncCharacterObstacle } from './lobby-colliders';
 import { remoteAvatarAnimStride } from './quality';
 import { isLobbyPerfDiagEnabled, lobbyPerfMark, lobbyPerfNoteRemoteUpdate } from './lobby-perf-diag';
+import { resolveGlbUrl } from './avatar-config';
+import { yieldToRenderLoop } from './yield-to-render';
 function isAir(animation) {
     return animation === 'jump' || animation === 'fall';
 }
@@ -25,16 +28,7 @@ function isRoughlyBehindCamera(camera, worldX, worldZ) {
     const dot = (fx / flen) * (dx * inv) + (fz / flen) * (dz * inv);
     return dot < -0.12;
 }
-function yieldToRenderLoop() {
-    return new Promise((resolve) => {
-        if (typeof requestAnimationFrame === 'function') {
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-            return;
-        }
-        setTimeout(resolve, 0);
-    });
-}
-/** Lightweight procedural stand-in so remotes appear before GLB parse. */
+/** Lightweight procedural stand-in description for the high-level spawn API. */
 function placeholderAvatar(player) {
     const cfg = (player.avatar.customConfig ?? {});
     return {
@@ -87,21 +81,21 @@ export class RemotePlayerManager {
         try {
             if (this.remotes.has(userId))
                 return;
-            // 1) Immediate cheap placeholder — lobby stays responsive while GLB loads.
-            const phRoot = AvatarFactory.create(this.scene, placeholderAvatar(player), rootName, player.displayName, player.username, { collider: 'body' });
-            AvatarFactory.markLobbyAvatar(phRoot, this.scene);
-            AvatarFactory.setPosition(phRoot, player.position);
-            AvatarFactory.setRotationY(phRoot, player.rotationY);
-            syncCharacterObstacle(this.scene, phRoot.name, player.position.x, player.position.z);
+            // 1) Immediate cheap placeholder via high-level API (no GLB details here).
+            const phAvatar = AvatarFactory.createPlaceholderInstance(this.scene, placeholderAvatar(player), rootName, player.displayName, player.username, { collider: 'body' });
+            phAvatar.setPosition(player.position);
+            phAvatar.setRotationY(player.rotationY);
+            syncCharacterObstacle(this.scene, phAvatar.name, player.position.x, player.position.z);
             if (!this.isSpawnCurrent(userId, generation)) {
-                removeCharacterObstacle(this.scene, phRoot.name);
-                phRoot.dispose();
+                removeCharacterObstacle(this.scene, phAvatar.name);
+                phAvatar.dispose();
                 return;
             }
             const entry = {
                 state: player,
-                root: phRoot,
-                animator: new HumanoidAnimator(phRoot, AvatarFactory.getAnimationGroups(phRoot)),
+                avatar: phAvatar,
+                animator: new HumanoidAnimator(phAvatar),
+                lifecycle: 'PLACEHOLDER',
                 yaw: player.rotationY,
                 targetPosition: { ...player.position },
                 targetRotationY: player.rotationY,
@@ -110,7 +104,6 @@ export class RemotePlayerManager {
                 speed: 0,
                 animAcc: 0,
                 frame: 0,
-                isPlaceholder: true,
                 generation,
                 drawVisible: true,
             };
@@ -119,47 +112,74 @@ export class RemotePlayerManager {
                 lobbyPerfMark('remote_placeholder', performance.now() - tSpawn, userId);
             }
             // Let a couple of frames paint the placeholder before heavy GLB work.
-            await yieldToRenderLoop();
+            {
+                const tYield = performance.now();
+                await yieldToRenderLoop();
+                if (isLobbyPerfDiagEnabled()) {
+                    lobbyPerfMark('remote_yield', performance.now() - tYield, userId);
+                }
+            }
             if (!this.isSpawnCurrent(userId, generation))
                 return;
-            // 2) Async real avatar (cache hit stays fast; miss no longer blocks first paint).
+            // Warm this remote's base container while the placeholder is visible so a
+            // different-base join does not stack cold LoadAssetContainer + instantiate.
+            const remoteGlb = resolveGlbUrl(player.avatar);
+            if (remoteGlb && !AvatarAssetManager.isContainerCached(this.scene, remoteGlb)) {
+                const tWarm = performance.now();
+                await AvatarAssetManager.warmGlbUrl(this.scene, remoteGlb);
+                if (isLobbyPerfDiagEnabled()) {
+                    lobbyPerfMark('remote_warm_glb', performance.now() - tWarm, userId);
+                }
+                await yieldToRenderLoop();
+                if (!this.isSpawnCurrent(userId, generation))
+                    return;
+            }
+            const curLoading = this.remotes.get(userId);
+            if (curLoading && curLoading.generation === generation) {
+                curLoading.lifecycle = 'LOADING';
+            }
+            // 2) Async real avatar through factory instance API.
             const realName = `${rootName}-mesh`;
-            let realRoot;
+            let realAvatar;
             try {
-                realRoot = await AvatarFactory.createAsync(this.scene, player.avatar, realName, player.displayName, player.username, { collider: 'body' });
+                realAvatar = await AvatarFactory.createInstanceAsync(this.scene, player.avatar, realName, player.displayName, player.username, { collider: 'body' });
             }
             catch (err) {
-                console.warn('[lobby-sdk] remote GLB failed; keeping placeholder', userId, err);
+                console.warn('[lobby-sdk] remote avatar failed; keeping placeholder', userId, err);
                 const cur = this.remotes.get(userId);
                 if (cur && cur.generation === generation)
-                    cur.isPlaceholder = false;
+                    cur.lifecycle = 'READY';
                 if (isLobbyPerfDiagEnabled()) {
                     lobbyPerfMark('remote_spawn_total', performance.now() - tSpawn, `${userId}:placeholder-fallback`);
                 }
                 return;
             }
             if (!this.isSpawnCurrent(userId, generation)) {
-                realRoot.dispose();
+                realAvatar.dispose();
                 return;
             }
             const cur = this.remotes.get(userId);
             if (!cur || cur.generation !== generation) {
-                realRoot.dispose();
+                realAvatar.dispose();
                 return;
             }
             // 3) Swap placeholder → real (safe dispose).
-            const pos = { x: cur.root.position.x, y: cur.root.position.y, z: cur.root.position.z };
+            const pos = {
+                x: cur.avatar.position.x,
+                y: cur.avatar.position.y,
+                z: cur.avatar.position.z,
+            };
             const yaw = cur.yaw;
-            removeCharacterObstacle(this.scene, cur.root.name);
-            const oldRoot = cur.root;
-            cur.root = realRoot;
-            cur.animator = new HumanoidAnimator(realRoot, AvatarFactory.getAnimationGroups(realRoot));
-            cur.isPlaceholder = false;
+            removeCharacterObstacle(this.scene, cur.avatar.name);
+            const oldAvatar = cur.avatar;
+            cur.avatar = realAvatar;
+            cur.animator = new HumanoidAnimator(realAvatar);
+            cur.lifecycle = 'READY';
             cur.drawVisible = true;
-            AvatarFactory.setPosition(realRoot, pos);
-            AvatarFactory.setRotationY(realRoot, yaw);
-            syncCharacterObstacle(this.scene, realRoot.name, pos.x, pos.z);
-            oldRoot.dispose();
+            realAvatar.setPosition(pos);
+            realAvatar.setRotationY(yaw);
+            syncCharacterObstacle(this.scene, realAvatar.name, pos.x, pos.z);
+            oldAvatar.dispose();
             if (isLobbyPerfDiagEnabled()) {
                 lobbyPerfMark('remote_spawn_total', performance.now() - tSpawn, userId);
             }
@@ -192,13 +212,14 @@ export class RemotePlayerManager {
         entry.state.emote = emote;
     }
     remove(userId) {
-        // Invalidate any in-flight GLB so it cannot attach after leave.
+        // Invalidate any in-flight load so it cannot attach after leave.
         this.loadingGen.delete(userId);
         const entry = this.remotes.get(userId);
         if (!entry)
             return;
-        removeCharacterObstacle(this.scene, entry.root.name);
-        entry.root.dispose();
+        removeCharacterObstacle(this.scene, entry.avatar.name);
+        entry.lifecycle = 'DISPOSED';
+        entry.avatar.dispose();
         this.remotes.delete(userId);
     }
     getIdentity(userId) {
@@ -212,20 +233,16 @@ export class RemotePlayerManager {
     }
     isRemoteReady(userId) {
         const entry = this.remotes.get(userId);
-        return !!entry && !entry.isPlaceholder;
+        return !!entry && entry.lifecycle === 'READY';
+    }
+    getLifecycle(userId) {
+        return this.remotes.get(userId)?.lifecycle ?? 'NONE';
     }
     setDrawVisible(entry, visible) {
         if (entry.drawVisible === visible)
             return;
         entry.drawVisible = visible;
-        let meshes = [];
-        try {
-            meshes = entry.root.getChildMeshes?.(false) ?? [];
-        }
-        catch {
-            return;
-        }
-        for (const mesh of meshes) {
+        for (const mesh of entry.avatar.getChildMeshes(false)) {
             if (!mesh || mesh.metadata?.isNameTag)
                 continue;
             mesh.isVisible = visible;
@@ -236,10 +253,12 @@ export class RemotePlayerManager {
         const camera = this.scene.activeCamera;
         const camPos = camera?.globalPosition;
         for (const entry of this.remotes.values()) {
+            if (entry.lifecycle === 'DISPOSED')
+                continue;
             const air = isAir(entry.targetAnimation);
             const xzFollow = 1 - Math.exp(-12 * dt);
             const yFollow = 1 - Math.exp(-(air ? 28 : 12) * dt);
-            const pos = entry.root.position;
+            const pos = entry.avatar.position;
             const prevX = pos.x;
             const prevZ = pos.z;
             pos.x += (entry.targetPosition.x - pos.x) * xzFollow;
@@ -251,33 +270,30 @@ export class RemotePlayerManager {
             while (d < -Math.PI)
                 d += Math.PI * 2;
             entry.yaw += d * xzFollow;
-            AvatarFactory.setRotationY(entry.root, entry.yaw);
+            entry.avatar.setRotationY(entry.yaw);
             const travelled = dt > 0 ? Math.hypot(pos.x - prevX, pos.z - prevZ) / dt : 0;
             entry.speed += (travelled - entry.speed) * (1 - Math.exp(-9 * dt));
             // Skip collider rewrite when barely moved (cheaper with many remotes).
             if (Math.hypot(pos.x - prevX, pos.z - prevZ) > 0.002) {
-                syncCharacterObstacle(this.scene, entry.root.name, pos.x, pos.z);
+                syncCharacterObstacle(this.scene, entry.avatar.name, pos.x, pos.z);
             }
             entry.animAcc += dt;
             entry.frame = (entry.frame + 1) | 0;
             let stride = 1;
-            let offScreen = false;
             if (camPos) {
                 const dx = pos.x - camPos.x;
                 const dy = pos.y - camPos.y;
                 const dz = pos.z - camPos.z;
                 const distSq = dx * dx + dy * dy + dz * dz;
                 stride = remoteAvatarAnimStride(distSq);
-                offScreen = !!(camera && isRoughlyBehindCamera(camera, pos.x, pos.z) && distSq > 100);
+                const offScreen = !!(camera && isRoughlyBehindCamera(camera, pos.x, pos.z) && distSq > 100);
                 // Hide off-screen remotes from the draw list (does not touch alwaysSelectAsActiveMesh).
-                // Near-camera remotes stay fully visible — never "invisible" when they should be seen.
                 if (offScreen) {
                     this.setDrawVisible(entry, false);
                     entry.animAcc = 0;
                     continue;
                 }
                 this.setDrawVisible(entry, true);
-                // Far remotes: skip obstacle sync already handled; anim stride covers CPU.
                 if (distSq > 48 * 48) {
                     stride = Math.max(stride, 4);
                 }
@@ -306,14 +322,16 @@ export class RemotePlayerManager {
             position: { ...entry.targetPosition },
             rotationY: entry.targetRotationY,
             animation: entry.targetAnimation,
-            ready: !entry.isPlaceholder,
+            ready: entry.lifecycle === 'READY',
+            lifecycle: entry.lifecycle,
         }));
     }
     dispose() {
         this.loadingGen.clear();
         for (const entry of this.remotes.values()) {
-            removeCharacterObstacle(this.scene, entry.root.name);
-            entry.root.dispose();
+            removeCharacterObstacle(this.scene, entry.avatar.name);
+            entry.lifecycle = 'DISPOSED';
+            entry.avatar.dispose();
         }
         this.remotes.clear();
     }

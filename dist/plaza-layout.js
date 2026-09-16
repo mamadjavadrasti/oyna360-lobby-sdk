@@ -473,21 +473,28 @@ function serializeRooms(all) {
 function animateScene(scene, runtimes, lobby, onRoomStart) {
     let t = 0;
     const lastCeil = {};
+    // Resolve once — getMeshByName scans scene.meshes every call (expensive with large plazas).
+    const jewel = scene.getMeshByName('plaza-center');
+    const roomFx = runtimes.map((r) => ({
+        runtime: r,
+        veil: scene.getMeshByName(`room-veil-${r.def.id}`),
+        portal: scene.getMeshByName(`room-portal-${r.def.id}`),
+    }));
     scene.registerBeforeRender(() => {
         const dt = scene.getEngine().getDeltaTime() * 0.001;
         t += dt;
-        const jewel = scene.getMeshByName('plaza-center');
-        if (jewel) {
+        if (jewel && !jewel.isDisposed() && jewel.isEnabled()) {
             jewel.rotation.y = t * 0.6;
             jewel.position.y = 2.55 + Math.sin(t * 2) * 0.08;
         }
-        for (const r of runtimes) {
-            const veil = scene.getMeshByName(`room-veil-${r.def.id}`);
-            if (veil)
-                veil.rotation.y = t * 0.8;
-            const portal = scene.getMeshByName(`room-portal-${r.def.id}`);
-            if (portal)
-                portal.rotation.z = Math.sin(t) * 0.08;
+        for (const fx of roomFx) {
+            const r = fx.runtime;
+            if (fx.veil && !fx.veil.isDisposed() && fx.veil.isEnabled()) {
+                fx.veil.rotation.y = t * 0.8;
+            }
+            if (fx.portal && !fx.portal.isDisposed() && fx.portal.isEnabled()) {
+                fx.portal.rotation.z = Math.sin(t) * 0.08;
+            }
             if (r.countdown != null) {
                 r.countdown -= dt;
                 const ceil = Math.max(0, Math.ceil(r.countdown));

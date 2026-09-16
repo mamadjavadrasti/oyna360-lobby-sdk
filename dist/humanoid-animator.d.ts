@@ -1,7 +1,8 @@
-import type { AnimationGroup, TransformNode } from '@babylonjs/core';
+import type { AnimationGroup } from '@babylonjs/core';
 import type { LobbyAnimationState } from './protocol';
+import type { AvatarInstance } from './avatar-instance';
 export declare class HumanoidAnimator {
-    private root;
+    private avatar;
     private time;
     private phase;
     private walkWeight;
@@ -18,7 +19,7 @@ export declare class HumanoidAnimator {
     private readonly gait;
     private groups;
     private activeClip;
-    constructor(root: TransformNode, animationGroups?: AnimationGroup[]);
+    constructor(avatar: AvatarInstance, animationGroups?: AnimationGroup[]);
     setSlideMode(on: boolean): void;
     /** Lets cadence be normalised against the lobby's configured move speeds. */
     setSpeedReference(walkSpeed: number, runSpeed: number): void;

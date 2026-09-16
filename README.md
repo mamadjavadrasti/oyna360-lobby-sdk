@@ -1,109 +1,122 @@
 # @oyna360/lobby-sdk
 
-لابی ۳D oyna360 برای بازی‌سازان (Babylon.js).
+لابی سه‌بعدی **oyna360** برای بازی‌سازان — بر پایه Babylon.js.
 
-پلتفرم فقط هویت، آواتار و سوکت را می‌دهد. ظاهر، پورتال و شروع گیم‌پلی مال بازی است.
+پلتفرم هویت، آواتار و اتاق WebSocket را می‌دهد.  
+**ظاهر لابی، پورتال‌ها و شروع گیم‌پلی مال شماست.**
 
-**همین یک پکیج کافی است.** `@platform/lobby-protocol` را نصب نکنید — پروتکل داخل SDK است.
+**نسخه پکیج:** مطابق GitHub tag · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
 
-## اول استارتر، بعد بازی
+> اتصال اولیه به پلتفرم (سشن / Authorize) کار [`@platform/game-sdk`](https://github.com/mamadjavadrasti/oyna360-game-sdk) است. این SDK لابی را اجرا می‌کند، لاگین نمی‌کند.
 
-منبع حقیقت این مونوریپو است: `packages/lobby-sdk` + الگوی `apps/examples/lobby-demo`.
+---
 
-دمو با `workspace:*` همین کد را لود می‌کند. پکیج GitHub فقط وقتی درست است که بعد از آخرین تغییر، `dist` بیلد و پوش شده باشد.
-
-**چطور کپی کنید (تا دمو کار کند و بازی خراب نشود):**
-
-1. `npm run lobby:demo` — http://localhost:5174
-2. `lobby-config.ts` و الگوی `main.ts` استارتر را به بازی کپی کنید
-3. از ریشهٔ مونوریپو: `pnpm lobby:pack` (پروتکل را sync و `dist` را می‌سازد؛ `npm pack` می‌گیرد) یا `pnpm lobby:pack -- --out path/to/game/vendor/lobby-sdk` برای کپی مستقیم؛ **یا** تگ تازهٔ GitHub را پین کنید
-4. به مسیر لوکال ریپوی پلتفرم alias ندهید (روی سرور نیست)
-5. تست از `/play/{slug}` نه از پورت خام بازی
-
-راهنمای کامل و لیست اشتباهات تکراری: [docs/lobby-sdk-integration.md](../../docs/lobby-sdk-integration.md#چطور-از-استارتر-استفاده-کنید)
-
-`dist` سالم این فایل‌ها را دارد: `humanoid-animator.js`, `third-person-camera.js`, `lobby-colliders.js`, `protocol.js`, `lobby-chat-ui.js`. اگر `index.js` هنوز `@platform/lobby-protocol` import کند، بیلد کهنه است.
-
-## نصب در پروژهٔ بازی
-
-ترجیح: workspace با `dist` همین پکیج.
+## نصب
 
 ```bash
-# فقط اگر GitHub با dist تازه پوش شده
-npm install github:mamadjavadrasti/oyna360-lobby-sdk#<tag> @babylonjs/core
+npm install github:mamadjavadrasti/oyna360-lobby-sdk#master @babylonjs/core
 ```
+
+`@babylonjs/core` peer dependency است (نسخه ۷ توصیه می‌شود).
 
 ```json
 {
   "dependencies": {
-    "@oyna360/lobby-sdk": "*",
+    "@oyna360/lobby-sdk": "github:mamadjavadrasti/oyna360-lobby-sdk#master",
     "@babylonjs/core": "^7.44.0"
   }
 }
 ```
 
-مستندات وصل: [docs/01-connect.md](docs/01-connect.md) · انتشار GitHub: [docs/02-github.md](docs/02-github.md)
+تگ/`dist` تازه را پین کنید. اگر `dist/index.js` هنوز `@platform/lobby-protocol` import کند، بیلد کهنه است.
 
-## شروع سریع
+---
 
-کپی از استارتر بهتر از حداقل زیر است.
+## سه حالت ورود به لابی
 
-```typescript
+| حالت | کی استفاده کنید | API |
+|------|------------------|-----|
+| **Production** | بازیکن از `/play/{slug}` آمده | `createFromPlatform` یا `create({ platformInit })` بعد از game-sdk |
+| **Direct Development** | بازی روی origin خودتان + game-sdk Authorize | `create({ platformInit })` با Context از `PlatformSDK.init()` |
+| **Offline / Fake** | تست UI بدون سرور | `createDev()` — مالتی‌پلیر واقعی ندارد |
+
+---
+
+## شروع سریع — با پلتفرم واقعی
+
+```ts
+import { PlatformSDK } from '@platform/game-sdk';
 import { PlatformLobby } from '@oyna360/lobby-sdk';
 
-const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-const lobby = await PlatformLobby.createFromPlatform(canvas, {
-  spawnPoint: { x: 0, y: 0, z: 3 },
-  cameraDistance: 9.5,
-  cameraHeight: 5,
+const canvas = document.getElementById('lobby') as HTMLCanvasElement;
+
+// 1) Context از پلتفرم (iframe یا Direct Dev)
+const init = await PlatformSDK.init({
+  // Direct فقط:
+  // platformUrl, platformWebUrl, gameSlug
+});
+
+// 2) لابی واقعی
+const lobby = await PlatformLobby.create({
+  canvas,
+  platformInit: init,
+  roomId: init.lobby!.roomId,
+  wsUrl: init.lobby!.wsUrl,
 });
 
 lobby.applyPlazaLayout({
-  onRoomStart: (room) => startGameplay(room),
+  onRoomStart: (room) => {
+    lobby.destroy();
+    startGameplay(room.id);
+  },
 });
-
-lobby.getUser();
-lobby.getAvatar();
-lobby.getSession();
-lobby.getPlayers();
 ```
 
-متد `lobby.applyPlazaLayout` برخورد و زمین‌بازی را هم می‌گذارد. تابع exportشدهٔ هم‌نام این کار را نمی‌کند.
+`wsUrl` / `roomId` را هاردکد نکنید.
 
-بدون پلتفرم (تست لوکال):
+---
 
-```typescript
+## شروع سریع — فقط UI آفلاین
+
+```ts
 const lobby = await PlatformLobby.createDev({
   canvas,
   roomId: 'game:my-game',
   config: { enableMultiplayer: false },
 });
+lobby.applyPlazaLayout();
 ```
 
-## چت
+این مسیر برای توسعه ظاهر است، نه تست مالتی‌پلیر روی سرور.
 
-زنده، بدون ذخیره. پیش‌فرض دکمه 💬 روی لابی (`enableChat: false` برای خاموش).
+---
 
-```typescript
-lobby.sendChat('سلام');
-lobby.on('chat', ({ displayName, text }) => {});
-```
+## مستندات
 
-## پیش‌نیاز پلتفرم
+| موضوع | فایل |
+|--------|------|
+| نقش SDK و مرز با game-sdk | [docs/00-overview.md](./docs/00-overview.md) |
+| اتصال و پیش‌نیاز | [docs/01-connect.md](./docs/01-connect.md) |
+| حالت‌های Production / Direct / Dev | [docs/03-modes.md](./docs/03-modes.md) |
+| API `PlatformLobby` | [docs/04-api.md](./docs/04-api.md) |
+| آواتار، چت، voice، data | [docs/05-features.md](./docs/05-features.md) |
+| کنترل‌ها و موبایل | [docs/06-controls.md](./docs/06-controls.md) |
+| عیب‌یابی | [docs/07-troubleshooting.md](./docs/07-troubleshooting.md) |
+| انتشار از GitHub | [docs/02-github.md](./docs/02-github.md) |
 
-| فیلد | مثال |
-|------|------|
-| `entryUrl` | `https://games.example.com/my-game/` |
-| `allowedOrigins` | `https://games.example.com` |
+---
 
-بازیکن از `/play/{slug}` وارد می‌شود. پلتفرم `platform:init` می‌فرستد. `lobby.wsUrl` را هاردکد نکنید.
+## امکانات اصلی
 
-## کنترل
+- صحنه Babylon، دوربین سوم‌شخص، برخورد
+- آواتار procedural / GLB + اکسسوری
+- بازیکنان remote، حرکت، انیمیشن
+- چت زنده، presence، voice (اختیاری)
+- کانال `lobby:data` برای matchmaking / کنترل بازی
+- Plaza / Starter layout، zone، portal، plugin
+- کیفیت خودکار و UI فارسی/انگلیسی
 
-- کیبورد: WASD (`event.code`)، Shift دویدن، Space پرش، E تعامل/ایموجی
-- ماوس: چرخش دوربین
-- موبایل: اهرم = راه رفتن؛ دکمهٔ دویدن جدا
-- Babylon و موتور دیگر (مثل Three.js) روی دو canvas جدا
+---
 
 ## لایسنس
 

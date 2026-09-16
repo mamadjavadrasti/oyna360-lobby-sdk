@@ -1,6 +1,7 @@
 import '@babylonjs/loaders/glTF';
 import type { SdkInitPayload } from './platform-types';
 import { type LobbyEmoteKind, type LobbyPlayerState, type LobbyFeatureFlags } from './protocol';
+import { type AvatarBaseDef } from './avatar-asset-manager';
 import { LocalPlayerController } from './local-player-controller';
 import type { LobbyPlugin } from './types';
 import { type StarterLayoutConfig } from './starter-layout';
@@ -53,6 +54,33 @@ export declare class PlatformLobby {
     diagWaitRemote(userId: string, timeoutMs?: number): Promise<boolean>;
     /** DIAG ONLY: wait until remote GLB/placeholder swap finished. */
     diagWaitRemoteReady(userId: string, timeoutMs?: number): Promise<boolean>;
+    /** Register shared base avatar GLBs (catalog). Does not load until preload/spawn. */
+    registerAvatarBases(defs: readonly AvatarBaseDef[]): void;
+    registerAvatarBase(def: AvatarBaseDef): void;
+    listAvatarBases(): AvatarBaseDef[];
+    isAvatarBaseCached(id: string): boolean;
+    /**
+     * Warm container cache for one base. Non-throwing; returns null on failure.
+     * Safe to call after bootstrap — does not block the render loop by itself.
+     */
+    preloadAvatarBase(id: string): Promise<import("@babylonjs/core").AssetContainer | null>;
+    /**
+     * Warm container cache for bases (all registered if ids omitted).
+     * Failures are per-id; lobby continues on the normal async spawn path.
+     */
+    preloadAvatarBases(ids?: readonly string[]): Promise<{
+        id: string;
+        ok: boolean;
+    }[]>;
+    /** Apply config.avatarBases + init.avatarBases + optional fire-and-forget preload (non-blocking). */
+    private applyConfiguredAvatarBases;
+    /** DIAG ONLY: update synthetic remote move/animation targets (no network). */
+    diagApplyRemoteMove(payload: {
+        userId: string;
+        position?: LobbyPlayerState['position'];
+        rotationY?: number;
+        animation?: import('./protocol').LobbyAnimationState;
+    }): void;
     private connectNetwork;
     on<E extends LobbyEventName>(event: E, handler: (payload: LobbyEventMap[E]) => void): () => void;
     off<E extends LobbyEventName>(event: E, handler: (payload: LobbyEventMap[E]) => void): void;
@@ -86,6 +114,7 @@ export declare class PlatformLobby {
         rotationY: number;
         animation: import("./protocol").LobbyAnimationState;
         ready: boolean;
+        lifecycle: import("./avatar-instance").RemoteAvatarLifecycle;
     }[];
     loadGLB(url: string, name?: string): Promise<import("@babylonjs/core").AbstractMesh>;
     onOverlay(id: string, handler: (payload: unknown) => void): void;

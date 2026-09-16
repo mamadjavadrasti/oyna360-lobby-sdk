@@ -66,7 +66,6 @@ export class SceneManager {
         queueMicrotask(() => canvas.focus());
         this.glow = new GlowLayer('plaza-glow', this.scene);
         this.glow.intensity = this.baseGlowIntensity;
-        this.scene.metadata = { ...(this.scene.metadata ?? {}), plazaGlow: this.glow };
         this.fx = new DefaultRenderingPipeline('plaza-fx', true, this.scene, [this.thirdPerson.camera]);
         this.fx.bloomEnabled = quality.bloom;
         this.fx.bloomThreshold = 0.72;
@@ -74,6 +73,12 @@ export class SceneManager {
         this.fx.bloomKernel = quality.bloomKernel;
         this.fx.fxaaEnabled = quality.fxaa;
         this.fx.imageProcessingEnabled = true;
+        // Expose handles for Stage-10 plaza diagnostics (read-only; no behavior change).
+        this.scene.metadata = {
+            ...(this.scene.metadata ?? {}),
+            plazaGlow: this.glow,
+            plazaFx: this.fx,
+        };
         // Scene-level only — never enable per-mesh SSAO/DoF (skinned avatars break + cost GPU).
         const fxAny = this.fx;
         if ('ssaoEnabled' in fxAny)

@@ -13,6 +13,8 @@ export declare class PlaygroundSystem {
     private particleBurst;
     private keyHandler;
     private readonly slidePath;
+    private trampPad;
+    private trampOrbs;
     constructor(lobby: PlatformLobby);
     private setupParticles;
     private setupZones;

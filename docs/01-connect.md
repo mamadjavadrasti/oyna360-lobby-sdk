@@ -1,102 +1,85 @@
-# وصل کردن بازی به لابی
-
-لابی از سمت پلتفرم آماده است. پلتفرم بازیکن را داخل گیم‌پلی نمی‌گذارد. هویت، آواتار و اتاق را می‌دهد؛ بازی ظاهر، پورتال و شروع مسابقه را خودش می‌سازد.
-
-همین پکیج `@oyna360/lobby-sdk` کافی است. `lobby-protocol` لازم نیست.
-
-اول استارتر را کپی کنید، از صفر ننویسید. جزئیات و تله‌ها: [lobby-sdk-integration.md](../../../docs/lobby-sdk-integration.md#چطور-از-استارتر-استفاده-کنید).
-
----
+# وصل کردن لابی به بازی
 
 ## قرارداد
 
-| پلتفرم می‌دهد | بازی باید بسازد |
-|---------------|-----------------|
-| کاربر، سشن، JWT | صحنه / ظاهر لابی |
-| آواتار انتخاب‌شده | جای پورتال و برچسب‌ها |
-| بازیکنان اتاق + حرکت + چت زنده | بعد از ورود به پورتال / اتمام شمارش اتاق چه می‌شود |
-| سوکت `lobby:*`، اتاق `game:{slug}` | نصب SDK داخل پروژهٔ بازی |
+| پلتفرم می‌دهد | شما می‌سازید |
+|---------------|--------------|
+| `user`, `session`, `avatar` | صحنه / تم / پورتال |
+| `lobby.wsUrl`, `lobby.roomId` | منطق «شروع مسابقه» |
+| همگام‌سازی بازیکنان روی سوکت | گیم‌پلی بعد از خروج از لابی |
 
-`toGameSlug` و `toScene` فقط راهنما هستند. SDK هرگز صفحه را عوض نمی‌کند. چت ذخیره نمی‌شود.
-
----
-
-## از استارتر بیاورید
-
-1. در روت پلتفرم: `npm run lobby:demo` → http://localhost:5174
-2. کپی `apps/examples/lobby-demo/src/lobby-config.ts` و الگوی `main.ts`
-3. همین SDK را بعد از `pnpm --filter @oyna360/lobby-sdk build` به بازی بدهید (workspace داخل ریپوی بازی، یا تگ GitHub با `dist` تازه)
-4. به فولدر پلتفرم روی دیسک لوکال alias ندهید
-5. تست از `/play/{slug}` با `entryUrl` همان پورت بازی
-
-اگر بیلد گفت `@platform/lobby-protocol` resolve نشد، shim ننویسید — `dist` کهنه است.
+SDK صفحه را عوض نمی‌کند و چت را ذخیره نمی‌کند.
 
 ---
 
 ## پیش‌نیاز
 
-1. بازی روی URL عمومی (یا `http://localhost:PORT`) host شده باشد.
-2. در ادمین: `slug` + `entryUrl` + `allowedOrigins`
-3. بازیکن از `/play/{slug}` وارد شود و لاگین باشد.
-4. `@oyna360/lobby-sdk` هم‌نسخهٔ استارتر + `@babylonjs/core`
+1. `@oyna360/lobby-sdk` + `@babylonjs/core`
+2. ترجیحاً `@platform/game-sdk` برای گرفتن Context
+3. بازی در ادمین: `slug`, `entryUrl`, `allowedOrigins`
+4. یک `<canvas>` اختصاصی لابی (اگر موتور دیگری دارید، canvas جدا)
 
 ---
 
-## جریان
+## الگوی توصیه‌شده
 
-```
-لاگین → /play/{slug}
-  → iframe با entryUrl
-  → platform:init  (user, session, avatar, lobby.wsUrl, lobby.roomId)
-  → PlatformLobby.createFromPlatform(canvas)
-  → ورود پورتال / اتمام شمارش اتاق
-  → بازی startGameplay() را صدا می‌زند
-```
-
----
-
-## کد حداقل
-
-```typescript
+```ts
+import { PlatformSDK } from '@platform/game-sdk';
 import { PlatformLobby } from '@oyna360/lobby-sdk';
 
-const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
-const lobby = await PlatformLobby.createFromPlatform(canvas, {
-  spawnPoint: { x: 0, y: 0, z: 3 },
-  cameraDistance: 9.5,
-  cameraHeight: 5,
+const init = await PlatformSDK.init(/* Production: خالی | Direct: urls + slug */);
+
+const lobby = await PlatformLobby.create({
+  canvas,
+  platformInit: init,
+  roomId: init.lobby!.roomId,
+  wsUrl: init.lobby!.wsUrl,
+  config: {
+    enableChat: true,
+    enableVoice: true,
+    locale: 'fa',
+  },
 });
 
-function startGameplay(reason: { kind: 'portal' | 'room'; id: string }) {
-  lobby.destroy();
-}
-
 lobby.applyPlazaLayout({
-  onRoomStart: (room) => startGameplay({ kind: 'room', id: room.id }),
+  onRoomStart: (room) => {
+    lobby.destroy();
+    startMatch(room.id);
+  },
 });
 ```
 
-`lobby.applyPlazaLayout` متد است (برخورد + زمین‌بازی). تابع export را صدا نزنید.
+### جایگزین: `createFromPlatform`
 
-چت: پیش‌فرض 💬. `enableChat: false` / `sendChat` / `on('chat')`.
+فقط وقتی Context از قبل روی window/`platform:init` آمده (مثلاً بعد از `PlatformSDK.init()` یا parent iframe):
+
+```ts
+const lobby = await PlatformLobby.createFromPlatform(canvas, {
+  spawnPoint: { x: 0, y: 0, z: 3 },
+});
+```
+
+اگر نه iframe هستید و نه `init` زده‌اید، این متد timeout می‌دهد.
 
 ---
 
 ## ثبت در ادمین
 
-| فیلد | لوکال | پروداکشن |
-|------|--------|-----------|
-| entryUrl | پورت Vite بازی، مثلاً `http://localhost:5180` | `https://games.example.com/` |
-| allowedOrigins | همان origin | همان origin |
+| فیلد | Development | Production |
+|------|-------------|------------|
+| entryUrl | مثلاً `http://localhost:5180` | `https://games.example.com/` |
+| allowedOrigins | همان origin کامل | همان |
 
-سوکت از `platform:init.lobby.wsUrl` می‌آید. به `localhost:3001` هاردکد نکنید.
+برای Direct Development، origin را در `DEV_GAME_ORIGINS` / `allowedOrigins` هم مجاز کنید. جزئیات در مستندات game-sdk.
 
 ---
 
-## چک‌لیست
+## اشتباهات تکراری
 
-- [ ] استارتر را دیده‌اید؛ `dist` شامل animator / colliders / protocol / chat
-- [ ] دو canvas اگر موتور دیگری دارید
-- [ ] `entryUrl` + `allowedOrigins` درست
-- [ ] تست از `/play/{slug}` نه پورت خام
-- [ ] `applyPlazaLayout` متد + `destroy()` قبل از گیم‌پلی
+- هاردکد `http://localhost:3001/lobby`
+- صدا زدن تابع export به نام `applyPlazaLayout` به‌جای **متد** `lobby.applyPlazaLayout`
+- فراموش کردن `destroy()` قبل از گیم‌پلی سنگین
+- استفاده از `createDev()` به‌جای اتصال واقعی
+- نصب جداگانه `lobby-protocol` و shim دستی
+
+بعدی: [03-modes.md](./03-modes.md)

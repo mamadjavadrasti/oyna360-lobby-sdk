@@ -1,5 +1,4 @@
 import { pickAvatarClip } from './avatar-clips';
-import { AvatarFactory } from './avatar-factory';
 import { HumanoidPose, RUN_GAIT, WALK_GAIT, approach, cloneGait, footContacts, gaitFrequency, lerpGait, writeAirPose, writeGaitPose, writeIdlePose, writeSlidePose, } from './humanoid-locomotion';
 import { applyHumanoidPose } from './humanoid-rig';
 /** Nominal speeds used to normalise cadence when a caller reports no velocity. */
@@ -37,7 +36,7 @@ function setPivot(rig, limb, pitch, yaw, roll) {
     node.rotation.set(x, y, roll);
 }
 export class HumanoidAnimator {
-    root;
+    avatar;
     time = 0;
     phase = 0;
     walkWeight = 0;
@@ -54,9 +53,10 @@ export class HumanoidAnimator {
     gait = cloneGait(WALK_GAIT);
     groups;
     activeClip = null;
-    constructor(root, animationGroups) {
-        this.root = root;
-        this.groups = animationGroups?.length ? animationGroups : null;
+    constructor(avatar, animationGroups) {
+        this.avatar = avatar;
+        const groups = animationGroups?.length ? animationGroups : avatar.animationGroups;
+        this.groups = groups.length ? groups : null;
     }
     setSlideMode(on) {
         this.slideMode = on;
@@ -77,12 +77,12 @@ export class HumanoidAnimator {
             this.playClip(state);
             return;
         }
-        const rig = AvatarFactory.getRig(this.root);
+        const rig = this.avatar.rig;
         if (!rig)
             return;
         const humanoid = rig.humanoid ?? null;
         // Unskinned rigid GLB: no limb bones — keep the visual stable.
-        if (this.root.metadata?.rigidGlb && !rig.boneDriven) {
+        if (this.avatar.rigidGlb && !rig.boneDriven) {
             rig.visual.position.y = 0;
             return;
         }
@@ -143,8 +143,8 @@ export class HumanoidAnimator {
             this.clipStepAcc = 0;
             return false;
         }
-        const rig = AvatarFactory.getRig(this.root);
-        const posed = !this.groups && !(this.root.metadata?.rigidGlb && !rig?.boneDriven);
+        const rig = this.avatar.rig;
+        const posed = !this.groups && !(this.avatar.rigidGlb && !rig?.boneDriven);
         if (!posed) {
             this.clipStepAcc += dt;
             const interval = state === 'run' ? 0.28 : 0.42;

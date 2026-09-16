@@ -2,7 +2,7 @@ import { Quaternion, Ray, Vector3 } from '@babylonjs/core';
 import type { AbstractMesh, ArcRotateCamera, Mesh, Scene, TransformNode } from '@babylonjs/core';
 import type { LobbyAnimationState } from './protocol';
 import { syncCharacterObstacle } from './lobby-colliders';
-import { AvatarFactory } from './avatar-factory';
+import { AvatarInstance } from './avatar-instance';
 import { HumanoidAnimator } from './humanoid-animator';
 import type { PlatformLobbyConfig, Vector3 as Vec3 } from './types';
 import type { LobbyMusic } from './lobby-music';
@@ -43,6 +43,10 @@ function samplePath(path: Vector3[], t: number) {
   );
 }
 
+function asAvatarInstance(avatar: AvatarInstance | TransformNode): AvatarInstance {
+  return avatar instanceof AvatarInstance ? avatar : AvatarInstance.fromRoot(avatar);
+}
+
 export class LocalPlayerController {
   private codes = new Set<string>();
   private stickX = 0;
@@ -66,23 +70,26 @@ export class LocalPlayerController {
   private readonly walkSpeed: number;
   private readonly runMultiplier: number;
   private readonly animator: HumanoidAnimator;
+  private readonly avatar: AvatarInstance;
   private audio: LobbyMusic | null = null;
   private disposed = false;
   private spawn: Vec3;
+  private ignoreMeshesCache: AbstractMesh[] | null = null;
 
   constructor(
-    private root: TransformNode,
+    avatar: AvatarInstance | TransformNode,
     spawn: Vec3,
     private scene: Scene,
     private getCamera: () => ArcRotateCamera,
     config: PlatformLobbyConfig = {},
   ) {
+    this.avatar = asAvatarInstance(avatar);
     this.spawn = { ...spawn };
     // Walk ≈ former default sprint (6.2×1.7); sprint a bit faster than that.
     this.walkSpeed = config.playerSpeed ?? 10.5;
     this.runMultiplier = config.runMultiplier ?? 1.3;
-    this.root.position.set(spawn.x, spawn.y, spawn.z);
-    this.animator = new HumanoidAnimator(root, AvatarFactory.getAnimationGroups(root));
+    this.avatar.root.position.set(spawn.x, spawn.y, spawn.z);
+    this.animator = new HumanoidAnimator(this.avatar);
     this.animator.setSpeedReference(this.walkSpeed, this.walkSpeed * this.runMultiplier);
     this.yaw = 0;
     this.syncVisualYaw();
@@ -90,6 +97,11 @@ export class LocalPlayerController {
     window.addEventListener('keydown', this.onKeyDown, true);
     window.addEventListener('keyup', this.onKeyUp, true);
     window.addEventListener('blur', this.onBlur);
+  }
+
+  /** Back-compat: controllers historically exposed the Babylon root node. */
+  get root(): TransformNode {
+    return this.avatar.root;
   }
 
   setStick(x: number, z: number) {
@@ -395,8 +407,8 @@ export class LocalPlayerController {
   }
 
   private syncVisualYaw() {
-    const rig = AvatarFactory.getRig(this.root);
-    const visual = rig?.visual ?? this.root;
+    const rig = this.avatar.rig;
+    const visual = rig?.visual ?? this.avatar.root;
     visual.rotation.set(0, 0, 0);
     visual.rotationQuaternion = Quaternion.RotationYawPitchRoll(this.yaw, 0, 0);
   }
@@ -411,11 +423,17 @@ export class LocalPlayerController {
   }
 
   getIgnoreMeshes(): AbstractMesh[] {
+    // Camera occlusion runs every frame — do not rebuild getChildMeshes() each call.
+    if (this.ignoreMeshesCache && this.ignoreMeshesCache.length > 0) {
+      const stillOk = this.ignoreMeshesCache.every((m) => m && !m.isDisposed());
+      if (stillOk) return this.ignoreMeshesCache;
+    }
     const meshes: AbstractMesh[] = [];
     if ('getChildMeshes' in this.root) {
       meshes.push(...(this.root as Mesh).getChildMeshes(false));
     }
     if ((this.root as Mesh).ellipsoid) meshes.push(this.root as Mesh);
+    this.ignoreMeshesCache = meshes;
     return meshes;
   }
 

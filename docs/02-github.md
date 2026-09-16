@@ -1,41 +1,41 @@
-# انتشار روی GitHub
+# نصب از GitHub
 
-این پوشه می‌تواند ریپوی جدا برای بازی‌سازان باشد. بازی فقط همین را نصب می‌کند.
+پکیج برای بازی‌سازان از ریپوی عمومی منتشر می‌شود:
 
-**اگر `dist` کهنه پوش شود، دمو داخل مونوریپو درست کار می‌کند و بازی‌ها می‌شکنند** (import به `@platform/lobby-protocol`، بدون انیماتور/برخورد/چت). بعد از هر تغییر SDK حتماً بیلد و پوش کنید.
+`https://github.com/mamadjavadrasti/oyna360-lobby-sdk`
 
-از روت ریپوی پلتفرم:
-
-```powershell
-pnpm.cmd --filter @oyna360/lobby-sdk build
-cd packages/lobby-sdk
-# اگر ریپو از قبل هست:
-git add dist src docs README.md LICENSE package.json
-git commit -m "lobby-sdk: rebuild dist"
-git tag v0.1.x
-git push origin HEAD
-git push origin v0.1.x
-```
-
-اولین بار:
-
-```powershell
-cd packages/lobby-sdk
-pnpm.cmd run build
-git init
-git add src docs README.md LICENSE package.json tsconfig.json .gitignore dist
-git commit -m "oyna360 lobby SDK"
-gh repo create mamadjavadrasti/oyna360-lobby-sdk --public --source=. --remote=origin --push
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-بازی باید به **تگ** پین شود، نه شاخهٔ شناور:
+## نصب پایدار
 
 ```bash
-npm install github:mamadjavadrasti/oyna360-lobby-sdk#v0.1.x @babylonjs/core
+npm install github:mamadjavadrasti/oyna360-lobby-sdk#master
+# بهتر: تگ نسخه وقتی توسط تیم پلتفرم زده شد
+npm install github:mamadjavadrasti/oyna360-lobby-sdk#v0.x.x
 ```
 
-قبل از اعلام به بازی‌ساز، `dist/index.js` را چک کنید: نباید `from '@platform/lobby-protocol'` داشته باشد. باید `humanoid-animator.js` و `lobby-chat-ui.js` در `dist` باشند.
+همیشه `@babylonjs/core` را جدا نصب کنید.
 
-جایگزین امن‌تر برای سرور بازی: کپی همین پوشه (با `dist`) به workspace بازی — بدون وابستگی به GitHub.
+## بررسی سلامت `dist`
+
+بعد از نصب، در `node_modules/@oyna360/lobby-sdk/dist/index.js`:
+
+- نباید `from '@platform/lobby-protocol'` دیده شود
+- باید فایل‌هایی مثل `platform-lobby.js`, `protocol.js`, `avatar-factory.js` وجود داشته باشد
+
+## به‌روزرسانی
+
+```bash
+npm install github:mamadjavadrasti/oyna360-lobby-sdk#master --force
+# کش Vite را پاک کنید
+rm -rf node_modules/.vite
+```
+
+یا کپی دستی `dist` از maintainer (pack) داخل `node_modules/@oyna360/lobby-sdk`.
+
+## ارتباط با game-sdk
+
+lobby-sdk وابسته به game-sdk نیست؛ ولی در عمل برای Context واقعی هر دو را نصب کنید:
+
+```bash
+npm install github:mamadjavadrasti/oyna360-game-sdk#v0.5.0
+npm install github:mamadjavadrasti/oyna360-lobby-sdk#master @babylonjs/core
+```

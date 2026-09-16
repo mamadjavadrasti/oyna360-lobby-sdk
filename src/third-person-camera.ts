@@ -18,6 +18,10 @@ export class ThirdPersonCamera {
   private pointerId = -1;
   private lastX = 0;
   private lastY = 0;
+  private readonly desiredTarget = new Vector3();
+  private readonly camDir = new Vector3();
+  private readonly occlusionRay = new Ray(Vector3.Zero(), Vector3.Forward(), 1);
+  private ignoreSet = new Set<AbstractMesh>();
 
   constructor(
     private scene: Scene,
@@ -123,20 +127,25 @@ export class ThirdPersonCamera {
       this.clampBeta();
     }
 
-    const desired = new Vector3(playerPosition.x, playerPosition.y + 1.65, playerPosition.z);
+    this.desiredTarget.set(playerPosition.x, playerPosition.y + 1.65, playerPosition.z);
     const follow = 1 - Math.exp(-8 * dt);
-    this.target.x += (desired.x - this.target.x) * follow;
-    this.target.y += (desired.y - this.target.y) * follow;
-    this.target.z += (desired.z - this.target.z) * follow;
+    this.target.x += (this.desiredTarget.x - this.target.x) * follow;
+    this.target.y += (this.desiredTarget.y - this.target.y) * follow;
+    this.target.z += (this.desiredTarget.z - this.target.z) * follow;
     this.camera.setTarget(this.target);
 
-    const skip = new Set(ignoreMeshes);
-    const dir = this.camera.position.subtract(this.target);
-    if (dir.lengthSquared() < 0.01) return;
+    this.ignoreSet.clear();
+    for (let i = 0; i < ignoreMeshes.length; i++) this.ignoreSet.add(ignoreMeshes[i]);
+
+    this.camera.position.subtractToRef(this.target, this.camDir);
+    if (this.camDir.lengthSquared() < 0.01) return;
     const desiredLen = this.wantedRadius;
-    dir.normalize();
-    const ray = new Ray(this.target, dir, desiredLen);
-    const hit = this.scene.pickWithRay(ray, (mesh) => {
+    this.camDir.normalize();
+    this.occlusionRay.origin.copyFrom(this.target);
+    this.occlusionRay.direction.copyFrom(this.camDir);
+    this.occlusionRay.length = desiredLen;
+    const skip = this.ignoreSet;
+    const hit = this.scene.pickWithRay(this.occlusionRay, (mesh) => {
       if (!mesh || skip.has(mesh) || !mesh.checkCollisions) return false;
       if (mesh.name.startsWith('local-player') || mesh.name.includes('nametag') || mesh.name.includes('-sign')) {
         return false;

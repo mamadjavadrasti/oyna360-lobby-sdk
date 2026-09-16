@@ -48,6 +48,18 @@ export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig 
   uiMessages?: Partial<import('./lobby-ui-i18n').LobbyUiMessages>;
   /** `auto` picks a tier from device hints; default `auto`. */
   quality?: import('./quality').LobbyQualityLevel | 'auto';
+  /**
+   * Shared base avatar catalog (≈2–10 GLBs). Customization (tint/face/accessories)
+   * is applied per AvatarInstance; do not register one GLB per cosmetic combo.
+   */
+  avatarBases?: Array<{ id: string; glbUrl: string }>;
+  /**
+   * After scene start, asynchronously warm the GLB container cache.
+   * - omitted / `true`: preload all `avatarBases`
+   * - `false`: skip auto-preload (call `lobby.preloadAvatarBases` manually)
+   * - `string[]`: preload only these base ids
+   */
+  preloadAvatarBases?: boolean | string[];
 }
 
 export interface PlatformLobbyCreateOptions {

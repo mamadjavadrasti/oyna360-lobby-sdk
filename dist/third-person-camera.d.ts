@@ -11,6 +11,10 @@ export declare class ThirdPersonCamera {
     private pointerId;
     private lastX;
     private lastY;
+    private readonly desiredTarget;
+    private readonly camDir;
+    private readonly occlusionRay;
+    private ignoreSet;
     constructor(scene: Scene, canvas: HTMLCanvasElement, options?: {
         distance?: number;
         height?: number;

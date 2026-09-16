@@ -2,6 +2,7 @@ import { MeshBuilder, SceneLoader, Vector3 as BVector3 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { sanitizeLobbyChat, sanitizeLobbyDataChannel, sanitizeLobbyDataPayload, } from './protocol';
 import { AvatarFactory } from './avatar-factory';
+import { AvatarAssetManager } from './avatar-asset-manager';
 import { ensureDracoDecoder } from './draco';
 import { LocalPlayerController } from './local-player-controller';
 import { NetworkClient } from './network-client';
@@ -14,6 +15,8 @@ import { applyPlazaLayout as applyPlazaLayoutFn } from './plaza-layout';
 import { applyLobbyCollisions } from './lobby-colliders';
 import { attachLobbyDebug, buildLobbyDebugReport } from './lobby-debug';
 import { attachLobbyPerfDiag, lobbyPerfNoteLocalUpdate, isLobbyPerfDiagEnabled } from './lobby-perf-diag';
+import { attachRealDeviceAvatarDiag } from './lobby-real-device-diag';
+import { attachPlazaDiag } from './lobby-plaza-diag';
 import { attachPlayground } from './playground/playground-system';
 import { LobbyMusic } from './lobby-music';
 import { attachLobbyChatUi } from './lobby-chat-ui';
@@ -116,6 +119,8 @@ export class PlatformLobby {
         const spawnPose = resolveSpawnPose(layout, provisionalSlot);
         this.remotePlayers = new RemotePlayerManager(this.sceneManager.scene, this.init.user.id);
         window.addEventListener('resize', this.resizeHandler);
+        // Register + fire-and-forget preload so first paint / render loop stay unblocked.
+        this.applyConfiguredAvatarBases();
         // Show sky/ground immediately — do not freeze the canvas while the local GLB parses.
         let lastTime = performance.now();
         this.sceneManager.startRenderLoop(() => {
@@ -191,9 +196,22 @@ export class PlatformLobby {
         }
         if (typeof window !== 'undefined') {
             this.attachDebug(window);
-            attachLobbyPerfDiag(() => this.sceneManager.scene, () => this.sceneManager.engine, window);
-            window.__OYNA360_SDK_BUILD__ = 'avatar-opt-v11';
-            console.info('[lobby-sdk] build avatar-opt-v11');
+            const perf = attachLobbyPerfDiag(() => this.sceneManager.scene, () => this.sceneManager.engine, window);
+            attachRealDeviceAvatarDiag({
+                upsertRemote: (player) => this.diagUpsertRemote(player),
+                removeRemote: (userId) => this.diagRemoveRemote(userId),
+                waitRemote: (userId, timeoutMs) => this.diagWaitRemote(userId, timeoutMs),
+                waitRemoteReady: (userId, timeoutMs) => this.diagWaitRemoteReady(userId, timeoutMs),
+                applyRemoteMove: (payload) => this.diagApplyRemoteMove(payload),
+                isAvatarBaseCached: (id) => this.isAvatarBaseCached(id),
+                preloadAvatarBases: (ids) => this.preloadAvatarBases(ids),
+                registerAvatarBases: (defs) => this.registerAvatarBases(defs),
+                getScene: () => this.sceneManager.scene,
+                getEngine: () => this.sceneManager.engine,
+            }, perf, window);
+            attachPlazaDiag(() => this.sceneManager.scene, () => this.sceneManager.engine, perf, window);
+            window.__OYNA360_SDK_BUILD__ = 'avatar-join-v13';
+            console.info('[lobby-sdk] build avatar-join-v13');
         }
     }
     /**
@@ -226,6 +244,61 @@ export class PlatformLobby {
             await new Promise((r) => setTimeout(r, 50));
         }
         return false;
+    }
+    /** Register shared base avatar GLBs (catalog). Does not load until preload/spawn. */
+    registerAvatarBases(defs) {
+        AvatarAssetManager.registerAvatarBases(defs);
+    }
+    registerAvatarBase(def) {
+        AvatarAssetManager.registerAvatarBase(def);
+    }
+    listAvatarBases() {
+        return AvatarAssetManager.listAvatarBases();
+    }
+    isAvatarBaseCached(id) {
+        if (!this.sceneManager?.scene)
+            return false;
+        return AvatarAssetManager.isAvatarBaseCached(this.sceneManager.scene, id);
+    }
+    /**
+     * Warm container cache for one base. Non-throwing; returns null on failure.
+     * Safe to call after bootstrap — does not block the render loop by itself.
+     */
+    preloadAvatarBase(id) {
+        return AvatarAssetManager.preloadAvatarBase(this.sceneManager.scene, id);
+    }
+    /**
+     * Warm container cache for bases (all registered if ids omitted).
+     * Failures are per-id; lobby continues on the normal async spawn path.
+     */
+    preloadAvatarBases(ids) {
+        return AvatarAssetManager.preloadAvatarBases(this.sceneManager.scene, ids);
+    }
+    /** Apply config.avatarBases + init.avatarBases + optional fire-and-forget preload (non-blocking). */
+    applyConfiguredAvatarBases() {
+        const fromConfig = this.config.avatarBases ?? [];
+        const fromInit = this.init.avatarBases ?? [];
+        const bases = [...fromConfig, ...fromInit];
+        if (bases.length) {
+            AvatarAssetManager.registerAvatarBases(bases);
+        }
+        const flag = this.config.preloadAvatarBases;
+        if (flag === false)
+            return;
+        // Always warm registered bases (config and/or launch catalog) unless explicitly disabled.
+        if (!bases.length && flag !== true && !Array.isArray(flag))
+            return;
+        const ids = Array.isArray(flag) ? flag : undefined;
+        void AvatarAssetManager.preloadAvatarBases(this.sceneManager.scene, ids).then((results) => {
+            const failed = results.filter((r) => !r.ok);
+            if (failed.length) {
+                console.warn('[lobby-sdk] avatar base preload incomplete', failed.map((f) => f.id));
+            }
+        });
+    }
+    /** DIAG ONLY: update synthetic remote move/animation targets (no network). */
+    diagApplyRemoteMove(payload) {
+        this.remotePlayers.applyMove(payload);
     }
     connectNetwork() {
         this.voiceChat = new LobbyVoiceChat({

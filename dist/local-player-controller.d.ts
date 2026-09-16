@@ -1,9 +1,9 @@
 import type { AbstractMesh, ArcRotateCamera, Scene, TransformNode } from '@babylonjs/core';
 import type { LobbyAnimationState } from './protocol';
+import { AvatarInstance } from './avatar-instance';
 import type { PlatformLobbyConfig, Vector3 as Vec3 } from './types';
 import type { LobbyMusic } from './lobby-music';
 export declare class LocalPlayerController {
-    private root;
     private scene;
     private getCamera;
     private codes;
@@ -28,10 +28,14 @@ export declare class LocalPlayerController {
     private readonly walkSpeed;
     private readonly runMultiplier;
     private readonly animator;
+    private readonly avatar;
     private audio;
     private disposed;
     private spawn;
-    constructor(root: TransformNode, spawn: Vec3, scene: Scene, getCamera: () => ArcRotateCamera, config?: PlatformLobbyConfig);
+    private ignoreMeshesCache;
+    constructor(avatar: AvatarInstance | TransformNode, spawn: Vec3, scene: Scene, getCamera: () => ArcRotateCamera, config?: PlatformLobbyConfig);
+    /** Back-compat: controllers historically exposed the Babylon root node. */
+    get root(): TransformNode;
     setStick(x: number, z: number): void;
     setSounds(audio: LobbyMusic): void;
     setSprint(on: boolean): void;

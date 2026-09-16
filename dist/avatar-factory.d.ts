@@ -1,47 +1,17 @@
-import { Mesh, Scene, TransformNode, Vector3 as BVector3 } from '@babylonjs/core';
-import type { AnimationGroup, AbstractMesh } from '@babylonjs/core';
+import { Scene, TransformNode } from '@babylonjs/core';
+import type { AnimationGroup } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 /** Register Draco decoder so compressed avatar GLBs (KHR_draco_mesh_compression) load. */
 import '@babylonjs/core/Meshes/Compression/dracoCompression';
-import { type HumanoidBoneRig } from './humanoid-rig';
 import type { SdkLobbyAvatar } from './platform-types';
-export interface AvatarRig {
-    /** Movable node (collider if present, otherwise visual root). */
-    root: TransformNode;
-    visual: TransformNode;
-    collider: Mesh | null;
-    torso: TransformNode;
-    head: TransformNode;
-    armL: TransformNode;
-    armR: TransformNode;
-    legL: TransformNode;
-    legR: TransformNode;
-    /** Skinned GLB: pivots are skeleton bones — only rotate, never rewrite bind positions. */
-    boneDriven?: boolean;
-    /** Full humanoid bone map (spine, knees, elbows…) when the GLB skeleton allows it. */
-    humanoid?: HumanoidBoneRig;
-    restRotation?: {
-        torso: BVector3;
-        head: BVector3;
-        armL: BVector3;
-        armR: BVector3;
-        legL: BVector3;
-        legR: BVector3;
-    };
-}
-/** Recolor avatar body meshes only — never the nametag billboard. */
-export declare function applyAvatarTint(root: TransformNode, hex: string | undefined | null): void;
-/** Read base-body albedo: preset colorVariants first, then accessory appliesToBase. */
-export declare function readBaseAlbedoUrlFromConfig(customConfig: Record<string, unknown> | undefined | null): string | null;
-export declare function applyAvatarBaseAlbedo(root: TransformNode, textureUrl: string | null | undefined): void;
+import { AvatarInstance } from './avatar-instance';
+import { applyAvatarBaseAlbedo, applyAvatarTint, hardenAvatarMaterials, readBaseAlbedoUrlFromConfig } from './avatar-material-pipeline';
+import { type AvatarRig } from './avatar-rig-builder';
+export type { AvatarRig } from './avatar-rig-builder';
+export { AvatarRigBuilder } from './avatar-rig-builder';
+export { applyAvatarTint, applyAvatarBaseAlbedo, readBaseAlbedoUrlFromConfig, hardenAvatarMaterials, };
 /** Resolve absolute/relative glbUrl from SdkLobbyAvatar (phase A config). */
 export { resolveGlbUrl } from './avatar-config';
-/**
- * Meshy/glTF looks hollow because albedo PNG alpha + __root__ Z-flip + culling.
- * Force opaque + double-sided. Do not flipFaces, do not replace PBR.
- * Do not forceDepthWrite — that punches holes in the plaza when two avatars overlap.
- */
-export declare function hardenAvatarMaterials(meshes: AbstractMesh[]): void;
 export declare class AvatarFactory {
     static create(scene: Scene, avatar: SdkLobbyAvatar, name?: string, displayName?: string, username?: string, options?: {
         collider?: boolean | 'player' | 'body';
@@ -72,5 +42,23 @@ export declare class AvatarFactory {
         z: number;
     }): void;
     static setRotationY(root: TransformNode, rotationY: number): void;
+    /** Phase-1: wrap a factory-built root as AvatarInstance (no rebuild). */
+    static wrap(root: TransformNode): AvatarInstance;
+    /**
+     * Phase-1 high-level spawn API for remotes/controllers.
+     * Builds a procedural stand-in without exposing GLB/material details to callers.
+     */
+    static createPlaceholderInstance(scene: Scene, avatar: SdkLobbyAvatar, name: string, displayName?: string, username?: string, options?: {
+        collider?: boolean | 'player' | 'body';
+        skipNameTag?: boolean;
+    }): AvatarInstance;
+    /**
+     * Phase-1 high-level spawn API — same pipeline as createAsync, returns AvatarInstance.
+     */
+    static createInstanceAsync(scene: Scene, avatar: SdkLobbyAvatar, name?: string, displayName?: string, username?: string, options?: {
+        collider?: boolean | 'player' | 'body';
+        skipAccessories?: boolean;
+        skipNameTag?: boolean;
+    }): Promise<AvatarInstance>;
 }
 //# sourceMappingURL=avatar-factory.d.ts.map

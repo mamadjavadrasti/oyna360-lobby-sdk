@@ -25,6 +25,11 @@ export interface SdkInitPayload {
     user: SdkUser;
     game: SdkGameInfo;
     avatar: SdkLobbyAvatar;
+    /** Shared GLB bases to register/preload so remote different-base joins stay warm. */
+    avatarBases?: Array<{
+        id: string;
+        glbUrl: string;
+    }>;
     lobby?: {
         wsUrl: string;
         roomId: string;
@@ -38,6 +43,10 @@ export interface PlatformInitMessage {
     user: SdkUser;
     game: SdkGameInfo;
     avatar: SdkLobbyAvatar;
+    avatarBases?: Array<{
+        id: string;
+        glbUrl: string;
+    }>;
     lobby?: {
         wsUrl: string;
         roomId: string;
