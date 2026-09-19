@@ -14,8 +14,8 @@ SDK صفحه را عوض نمی‌کند و چت را ذخیره نمی‌کند
 
 ## پیش‌نیاز
 
-1. `@oyna360/lobby-sdk` + `@babylonjs/core`
-2. ترجیحاً `@platform/game-sdk` برای گرفتن Context
+1. `@oyna360/lobby-sdk` + `@babylonjs/core` — نصب از npm: [02-install.md](./02-install.md)
+2. ترجیحاً `@oyna360/game-sdk` برای گرفتن Context (`npm install @oyna360/game-sdk`)
 3. بازی در ادمین: `slug`, `entryUrl`, `allowedOrigins`
 4. یک `<canvas>` اختصاصی لابی (اگر موتور دیگری دارید، canvas جدا)
 
@@ -24,7 +24,7 @@ SDK صفحه را عوض نمی‌کند و چت را ذخیره نمی‌کند
 ## الگوی توصیه‌شده
 
 ```ts
-import { PlatformSDK } from '@platform/game-sdk';
+import { PlatformSDK } from '@oyna360/game-sdk';
 import { PlatformLobby } from '@oyna360/lobby-sdk';
 
 const init = await PlatformSDK.init(/* Production: خالی | Direct: urls + slug */);

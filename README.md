@@ -5,16 +5,18 @@
 پلتفرم هویت، آواتار و اتاق WebSocket را می‌دهد.  
 **ظاهر لابی، پورتال‌ها و شروع گیم‌پلی مال شماست.**
 
-**نسخه پکیج:** مطابق GitHub tag · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
+**نسخه پکیج:** `0.1.0` روی npm · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
 
-> اتصال اولیه به پلتفرم (سشن / Authorize) کار [`@platform/game-sdk`](https://github.com/mamadjavadrasti/playhub-game-sdk) است. این SDK لابی را اجرا می‌کند، لاگین نمی‌کند.
+> اتصال اولیه به پلتفرم (سشن / Authorize) کار [`@oyna360/game-sdk`](https://www.npmjs.com/package/@oyna360/game-sdk) است. این SDK لابی را اجرا می‌کند، لاگین نمی‌کند.
 
 ---
 
 ## نصب
 
 ```bash
-npm install github:mamadjavadrasti/oyna360-lobby-sdk#master @babylonjs/core
+npm install @oyna360/lobby-sdk @babylonjs/core
+# یا
+pnpm add @oyna360/lobby-sdk @babylonjs/core
 ```
 
 `@babylonjs/core` peer dependency است (نسخه ۷ توصیه می‌شود).
@@ -22,13 +24,23 @@ npm install github:mamadjavadrasti/oyna360-lobby-sdk#master @babylonjs/core
 ```json
 {
   "dependencies": {
-    "@oyna360/lobby-sdk": "github:mamadjavadrasti/oyna360-lobby-sdk#master",
+    "@oyna360/lobby-sdk": "^0.1.0",
     "@babylonjs/core": "^7.44.0"
   }
 }
 ```
 
-تگ/`dist` تازه را پین کنید. اگر `dist/index.js` هنوز `@platform/lobby-protocol` import کند، بیلد کهنه است.
+نسخه را در [npm](https://www.npmjs.com/package/@oyna360/lobby-sdk) ببینید.
+
+### به‌روزرسانی
+
+```bash
+npm install @oyna360/lobby-sdk@latest
+# یا
+pnpm update @oyna360/lobby-sdk
+```
+
+بعد از آپدیت، کش Vite را پاک کنید: `rm -rf node_modules/.vite`
 
 ---
 
@@ -45,7 +57,7 @@ npm install github:mamadjavadrasti/oyna360-lobby-sdk#master @babylonjs/core
 ## شروع سریع — با پلتفرم واقعی
 
 ```ts
-import { PlatformSDK } from '@platform/game-sdk';
+import { PlatformSDK } from '@oyna360/game-sdk';
 import { PlatformLobby } from '@oyna360/lobby-sdk';
 
 const canvas = document.getElementById('lobby') as HTMLCanvasElement;
@@ -102,7 +114,7 @@ lobby.applyPlazaLayout();
 | آواتار، چت، voice، data | [docs/05-features.md](./docs/05-features.md) |
 | کنترل‌ها و موبایل | [docs/06-controls.md](./docs/06-controls.md) |
 | عیب‌یابی | [docs/07-troubleshooting.md](./docs/07-troubleshooting.md) |
-| انتشار از GitHub | [docs/02-github.md](./docs/02-github.md) |
+| انتشار / نصب از npm | [docs/02-install.md](./docs/02-install.md) |
 
 ---
 

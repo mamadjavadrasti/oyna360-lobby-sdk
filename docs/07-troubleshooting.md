@@ -30,9 +30,13 @@
 
 متد روی instance را صدا بزنید نه تابع export خام.
 
-## ساخت از GitHub خراب است
+## ساخت / پکیج خراب است
 
-`dist` باید بدون import به `@platform/lobby-protocol` باشد. تگ را عوض کنید یا از maintainer بخواهید pack تازه بگذارد.
+`dist` باید بدون import به `@platform/lobby-protocol` باشد. به آخرین نسخهٔ npm آپدیت کنید:
+
+```bash
+npm install @oyna360/lobby-sdk@latest
+```
 
 ## createDev به سرور وصل نمی‌شود
 
