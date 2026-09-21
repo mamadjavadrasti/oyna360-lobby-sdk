@@ -1,0 +1,144 @@
+import type { SdkInitPayload, SdkLobbyAvatar, SdkUser, PlatformInitMessage } from './platform-types';
+
+export type { SdkInitPayload, SdkLobbyAvatar, SdkUser, PlatformInitMessage };
+
+export interface Vector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface LobbyThemeConfig {
+  groundColor?: string;
+  skyColor?: string;
+  ambientIntensity?: number;
+  fogEnabled?: boolean;
+  fogDensity?: number;
+}
+
+export interface LobbySpawnConfig {
+  spawnPoint?: Vector3;
+  spawnPoints?: Vector3[];
+  /** Ring radius when auto-spreading players around `spawnPoint`. */
+  spawnSlotRadius?: number;
+  /** Number of spawn slots on the ring. */
+  spawnSlotCount?: number;
+}
+
+export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig {
+  groundSize?: number;
+  cameraDistance?: number;
+  cameraHeight?: number;
+  playerSpeed?: number;
+  runMultiplier?: number;
+  enableMultiplayer?: boolean;
+  /** Default true. Live room chat overlay; messages are not stored. */
+  enableChat?: boolean;
+  /** Default true. WebRTC voice chat (friends / all lobby modes). */
+  enableVoice?: boolean;
+  /** Default true when multiplayer is on. Join/leave toasts. */
+  enablePresenceUi?: boolean;
+  /** Default true when multiplayer is on. Disconnect overlay. */
+  enableConnectionUi?: boolean;
+  /** Default true. Mobile portrait → landscape prompt. */
+  enableOrientationUi?: boolean;
+  /** UI copy locale for built-in overlays (default `fa`). */
+  locale?: import('./lobby-ui-i18n').LobbyUiLocale;
+  /** Partial overrides for built-in UI strings. */
+  uiMessages?: Partial<import('./lobby-ui-i18n').LobbyUiMessages>;
+  /** `auto` picks a tier from device hints; default `auto`. */
+  quality?: import('./quality').LobbyQualityLevel | 'auto';
+  /**
+   * Shared base avatar catalog (≈2–10 GLBs). Customization (tint/face/accessories)
+   * is applied per AvatarInstance; do not register one GLB per cosmetic combo.
+   */
+  avatarBases?: Array<{ id: string; glbUrl: string }>;
+  /**
+   * After scene start, asynchronously warm the GLB container cache.
+   * - omitted / `true`: preload all `avatarBases`
+   * - `false`: skip auto-preload (call `lobby.preloadAvatarBases` manually)
+   * - `string[]`: preload only these base ids
+   */
+  preloadAvatarBases?: boolean | string[];
+}
+
+export interface PlatformLobbyCreateOptions {
+  canvas: HTMLCanvasElement;
+  roomId: string;
+  /** Join this exact room only (friend invite); no capacity spillover. */
+  strictRoom?: boolean;
+  platformInit: SdkInitPayload | PlatformInitMessage;
+  config?: PlatformLobbyConfig;
+  wsUrl?: string;
+}
+
+export interface PlatformLobbyDevOptions {
+  canvas: HTMLCanvasElement;
+  roomId?: string;
+  mockUser?: Partial<SdkUser>;
+  mockAvatar?: Partial<SdkLobbyAvatar>;
+  config?: PlatformLobbyConfig;
+  wsUrl?: string;
+  sessionToken?: string;
+}
+
+export interface LobbyZoneBounds {
+  min: Vector3;
+  max: Vector3;
+}
+
+export interface LobbyZoneOptions {
+  id: string;
+  bounds: LobbyZoneBounds;
+  onEnter?: (playerId: string) => void;
+  onExit?: (playerId: string) => void;
+}
+
+export interface LobbyPortalOptions {
+  id: string;
+  position: Vector3;
+  radius?: number;
+  label?: string;
+  /** Hint for the game (match key, catalog slug, etc.). The SDK never navigates on this. */
+  toGameSlug?: string;
+  /** Hint for the game's own scene switch. The SDK never changes scenes. */
+  toScene?: string;
+  /** Game-owned. Called when the local player enters the portal. */
+  onTrigger?: () => void;
+}
+
+export interface LobbyPlugin {
+  name: string;
+  setup: (lobby: import('./platform-lobby').PlatformLobby) => void | Promise<void>;
+}
+
+export type LobbyEventMap = {
+  ready: void;
+  destroyed: void;
+  playerJoined: { userId: string; displayName: string; username?: string };
+  playerLeft: { userId: string; displayName?: string; username?: string };
+  zoneEnter: { zoneId: string; playerId: string };
+  zoneExit: { zoneId: string; playerId: string };
+  portalTrigger: { portalId: string; toGameSlug?: string; toScene?: string };
+  connected: void;
+  disconnected: void;
+  reconnecting: { attempt: number };
+  reconnectFailed: void;
+  error: { message: string; code?: string };
+  /** Live room chat. Not stored. */
+  chat: { userId: string; username?: string; displayName: string; text: string; at: number };
+  /**
+   * Ephemeral game data bus (`lobby:data`). Never shown in chat UI.
+   * Filter by `channel` (e.g. `fc.pad-room`, `mygame.queue`).
+   */
+  data: {
+    userId: string;
+    username?: string;
+    displayName?: string;
+    channel: string;
+    payload: string;
+    at: number;
+  };
+};
+
+export type LobbyEventName = keyof LobbyEventMap;

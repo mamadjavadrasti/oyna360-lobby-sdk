@@ -1,0 +1,422 @@
+/**
+ * Bundled lobby wire protocol — generated from @platform/lobby-protocol.
+ * Do not edit by hand. Run: node scripts/sync-lobby-protocol.mjs
+ * (scale roadmap 9.1)
+ */
+
+/** Lobby SDK protocol version — keep in sync with @oyna360/lobby-sdk */
+export const LOBBY_PROTOCOL_VERSION = '0.1.0';
+
+export type AvatarPresetKind = 'procedural' | 'glb';
+
+export interface Vector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface LobbyAvatarConfig {
+  presetId: string;
+  presetKey: string;
+  presetKind: AvatarPresetKind;
+  presetConfig: Record<string, unknown>;
+  customConfig: Record<string, unknown>;
+}
+
+export interface SdkLobbyAvatar {
+  presetId: string;
+  presetKey: string;
+  presetKind: AvatarPresetKind;
+  customConfig: Record<string, unknown>;
+}
+
+export type LobbyAnimationState = 'idle' | 'walk' | 'run' | 'jump' | 'fall';
+
+export type LobbyEmoteKind = 'wave' | 'sit' | 'dance' | 'point';
+
+export interface LobbyPlayerState {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatar: SdkLobbyAvatar;
+  position: Vector3;
+  rotationY: number;
+  animation: LobbyAnimationState;
+  emote: LobbyEmoteKind | null;
+  updatedAt: number;
+}
+
+/** Client → Server */
+export interface LobbyJoinMessage {
+  type: 'lobby:join';
+  roomId: string;
+  sessionToken: string;
+  position?: Vector3;
+  rotationY?: number;
+}
+
+export interface LobbyMoveMessage {
+  type: 'lobby:move';
+  position: Vector3;
+  rotationY: number;
+  animation: LobbyAnimationState;
+  seq: number;
+}
+
+export interface LobbyEmoteMessage {
+  type: 'lobby:emote';
+  emote: LobbyEmoteKind;
+}
+
+export interface LobbyLeaveMessage {
+  type: 'lobby:leave';
+}
+
+export interface LobbyPingMessage {
+  type: 'lobby:ping';
+}
+
+/** Ephemeral — never persisted. Only players currently in the room see it. */
+export interface LobbyChatMessage {
+  type: 'lobby:chat';
+  text: string;
+}
+
+/**
+ * Game/app data bus for the lobby room (matchmaking, pad rooms, sync, …).
+ * Not chat — never shown in chat UI. Prefer namespaced channels: `{game}.{feature}`.
+ */
+export interface LobbyDataMessage {
+  type: 'lobby:data';
+  channel: string;
+  payload: string;
+}
+
+export type LobbyVoiceMode = 'friends' | 'all';
+
+/** Serializable WebRTC session description (browser RTCSessionDescriptionInit). */
+export interface RtcSessionDescription {
+  type?: 'offer' | 'answer' | 'pranswer' | 'rollback';
+  sdp?: string;
+}
+
+/** Serializable ICE candidate (browser RTCIceCandidateInit). */
+export interface RtcIceCandidate {
+  candidate?: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+}
+
+export interface LobbyVoiceJoinMessage {
+  type: 'lobby:voice:join';
+  mode: LobbyVoiceMode;
+}
+
+export interface LobbyVoiceLeaveMessage {
+  type: 'lobby:voice:leave';
+}
+
+export interface LobbyVoiceMuteMessage {
+  type: 'lobby:voice:mute';
+  muted: boolean;
+}
+
+export interface LobbyVoiceOfferMessage {
+  type: 'lobby:voice:offer';
+  toUserId: string;
+  sdp: RtcSessionDescription;
+}
+
+export interface LobbyVoiceAnswerMessage {
+  type: 'lobby:voice:answer';
+  toUserId: string;
+  sdp: RtcSessionDescription;
+}
+
+export interface LobbyVoiceIceMessage {
+  type: 'lobby:voice:ice';
+  toUserId: string;
+  candidate: RtcIceCandidate;
+}
+
+export const LOBBY_CHAT_MAX_LEN = 140;
+
+/** Max payload bytes for lobby:data (game control / sync). Independent of chat. */
+export const LOBBY_DATA_MAX_LEN = 512;
+export const LOBBY_DATA_CHANNEL_MAX_LEN = 64;
+const LOBBY_DATA_CHANNEL_RE = /^[a-zA-Z0-9._-]+$/;
+
+export function sanitizeLobbyChat(text: unknown): string | null {
+  if (typeof text !== 'string') return null;
+  const cleaned = text.replace(/[\u0000-\u001F\u007F]/g, '').replace(/\s+/g, ' ').trim();
+  if (!cleaned) return null;
+  return cleaned.slice(0, LOBBY_CHAT_MAX_LEN);
+}
+
+/** Validate data channel id. Does not apply chat sanitization. */
+export function sanitizeLobbyDataChannel(channel: unknown): string | null {
+  if (typeof channel !== 'string') return null;
+  const cleaned = channel.trim();
+  if (!cleaned || cleaned.length > LOBBY_DATA_CHANNEL_MAX_LEN) return null;
+  if (!LOBBY_DATA_CHANNEL_RE.test(cleaned)) return null;
+  return cleaned;
+}
+
+/**
+ * Validate data payload. Strips only dangerous control chars; preserves framing spaces.
+ * Does not trim or slice like chat.
+ */
+export function sanitizeLobbyDataPayload(payload: unknown): string | null {
+  if (typeof payload !== 'string') return null;
+  if (!payload || payload.length > LOBBY_DATA_MAX_LEN) return null;
+  const cleaned = payload.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+  if (!cleaned || cleaned.length > LOBBY_DATA_MAX_LEN) return null;
+  return cleaned;
+}
+
+export type LobbyClientMessage =
+  | LobbyJoinMessage
+  | LobbyMoveMessage
+  | LobbyEmoteMessage
+  | LobbyLeaveMessage
+  | LobbyPingMessage
+  | LobbyChatMessage
+  | LobbyDataMessage
+  | LobbyVoiceJoinMessage
+  | LobbyVoiceLeaveMessage
+  | LobbyVoiceMuteMessage
+  | LobbyVoiceOfferMessage
+  | LobbyVoiceAnswerMessage
+  | LobbyVoiceIceMessage;
+
+/** Server → Client */
+export interface LobbyVoicePeerState {
+  userId: string;
+  username?: string;
+  mode: LobbyVoiceMode;
+  muted: boolean;
+}
+
+export interface LobbyFeatureFlags {
+  chatEnabled: boolean;
+  voiceEnabled: boolean;
+  chatAllowed: boolean;
+  voiceAllowed: boolean;
+  /**
+   * Game data channel (`lobby:data`). Omitted / undefined ⇒ enabled.
+   * Independent of chat — matchmaking must work when chat is banned/disabled.
+   */
+  dataEnabled?: boolean;
+  dataAllowed?: boolean;
+}
+
+export interface LobbyWelcomeMessage {
+  type: 'lobby:welcome';
+  roomId: string;
+  self: LobbyPlayerState;
+  players: LobbyPlayerState[];
+  maxPlayers: number;
+  /** Server protocol version (scale roadmap 9.4). */
+  protocolVersion: string;
+  /** Accepted friend user ids for voice filtering (friends mode). */
+  friendUserIds?: string[];
+  voicePeers?: LobbyVoicePeerState[];
+  lobbyFeatures?: LobbyFeatureFlags;
+}
+
+export interface LobbyStateMessage {
+  type: 'lobby:state';
+  players: LobbyPlayerState[];
+}
+
+export interface LobbyPlayerJoinedMessage {
+  type: 'lobby:player:joined';
+  player: LobbyPlayerState;
+}
+
+export interface LobbyPlayerLeftMessage {
+  type: 'lobby:player:left';
+  userId: string;
+  username?: string;
+  displayName?: string;
+}
+
+export interface LobbyPlayerMovedMessage {
+  type: 'lobby:player:moved';
+  userId: string;
+  position: Vector3;
+  rotationY: number;
+  animation: LobbyAnimationState;
+  seq: number;
+  serverTime: number;
+}
+
+/** Batched moves for a room tick (scale roadmap 4.1). Fields may be omitted when unchanged (4.3 delta). */
+export interface LobbyPlayersMovedMessage {
+  type: 'lobby:players:moved';
+  moves: Array<{
+    userId: string;
+    position?: Vector3;
+    rotationY?: number;
+    animation?: LobbyAnimationState;
+    seq: number;
+  }>;
+  serverTime: number;
+}
+
+export interface LobbyPlayerEmoteMessage {
+  type: 'lobby:player:emote';
+  userId: string;
+  emote: LobbyEmoteKind;
+}
+
+export interface LobbyErrorMessage {
+  type: 'lobby:error';
+  code: string;
+  message: string;
+}
+
+export interface LobbyPongMessage {
+  type: 'lobby:pong';
+}
+
+export interface LobbyChatBroadcastMessage {
+  type: 'lobby:chat';
+  userId: string;
+  username?: string;
+  displayName: string;
+  text: string;
+  at: number;
+}
+
+export interface LobbyDataBroadcastMessage {
+  type: 'lobby:data';
+  userId: string;
+  username?: string;
+  displayName?: string;
+  channel: string;
+  payload: string;
+  at: number;
+}
+
+export interface LobbyVoiceStateMessage {
+  type: 'lobby:voice:state';
+  peers: LobbyVoicePeerState[];
+  friendUserIds: string[];
+}
+
+export interface LobbyVoiceJoinedMessage {
+  type: 'lobby:voice:joined';
+  peer: LobbyVoicePeerState;
+}
+
+export interface LobbyVoiceLeftMessage {
+  type: 'lobby:voice:left';
+  userId: string;
+}
+
+export interface LobbyVoiceMuteBroadcastMessage {
+  type: 'lobby:voice:mute';
+  userId: string;
+  muted: boolean;
+}
+
+export interface LobbyVoiceOfferBroadcastMessage {
+  type: 'lobby:voice:offer';
+  fromUserId: string;
+  sdp: RtcSessionDescription;
+}
+
+export interface LobbyVoiceAnswerBroadcastMessage {
+  type: 'lobby:voice:answer';
+  fromUserId: string;
+  sdp: RtcSessionDescription;
+}
+
+export interface LobbyVoiceIceBroadcastMessage {
+  type: 'lobby:voice:ice';
+  fromUserId: string;
+  candidate: RtcIceCandidate;
+}
+
+export type LobbyServerMessage =
+  | LobbyWelcomeMessage
+  | LobbyStateMessage
+  | LobbyPlayerJoinedMessage
+  | LobbyPlayerLeftMessage
+  | LobbyPlayerMovedMessage
+  | LobbyPlayersMovedMessage
+  | LobbyPlayerEmoteMessage
+  | LobbyChatBroadcastMessage
+  | LobbyDataBroadcastMessage
+  | LobbyVoiceStateMessage
+  | LobbyVoiceJoinedMessage
+  | LobbyVoiceLeftMessage
+  | LobbyVoiceMuteBroadcastMessage
+  | LobbyVoiceOfferBroadcastMessage
+  | LobbyVoiceAnswerBroadcastMessage
+  | LobbyVoiceIceBroadcastMessage
+  | LobbyErrorMessage
+  | LobbyPongMessage;
+
+export function parseLobbyClientMessage(data: unknown): LobbyClientMessage | null {
+  if (!data || typeof data !== 'object') return null;
+  const type = (data as { type?: unknown }).type;
+  switch (type) {
+    case 'lobby:join':
+    case 'lobby:move':
+    case 'lobby:emote':
+    case 'lobby:leave':
+    case 'lobby:ping':
+    case 'lobby:chat':
+    case 'lobby:data':
+    case 'lobby:voice:join':
+    case 'lobby:voice:leave':
+    case 'lobby:voice:mute':
+    case 'lobby:voice:offer':
+    case 'lobby:voice:answer':
+    case 'lobby:voice:ice':
+      return data as LobbyClientMessage;
+    default:
+      return null;
+  }
+}
+
+/** Build per-game room id */
+export function gameRoomId(gameSlug: string, instance = 1): string {
+  return instance <= 1 ? `game:${gameSlug}` : `game:${gameSlug}-${instance}`;
+}
+
+/** Global avatar hub room (phase 7) */
+export const GLOBAL_AVATAR_ROOM_ID = 'global:avatars';
+
+export function isGlobalAvatarRoom(roomId: string): boolean {
+  return roomId === GLOBAL_AVATAR_ROOM_ID;
+}
+
+const GAME_ROOM_PREFIX = 'game:';
+
+/**
+ * Best-effort slug from a room id. Slugs may contain hyphens (`game:fall-cars-2`),
+ * so a trailing `-<digits>` is read as an instance suffix. Ambiguous for slugs that
+ * genuinely end in `-<digits>` — prefer `isRoomForGame` when the slug is known.
+ */
+export function parseGameSlugFromRoom(roomId: string): string | null {
+  if (roomId === GLOBAL_AVATAR_ROOM_ID) return 'avatar-hub';
+  if (!roomId.startsWith(GAME_ROOM_PREFIX)) return null;
+  const rest = roomId.slice(GAME_ROOM_PREFIX.length);
+  if (!rest) return null;
+  const instanced = /^(.+)-(\d+)$/.exec(rest);
+  return instanced ? instanced[1] : rest;
+}
+
+/** True when roomId is the base room or a numbered instance of gameSlug. */
+export function isRoomForGame(roomId: string, gameSlug: string): boolean {
+  if (!gameSlug) return false;
+  if (roomId === gameRoomId(gameSlug)) return true;
+  const prefix = `${GAME_ROOM_PREFIX}${gameSlug}-`;
+  if (!roomId.startsWith(prefix)) return false;
+  const instance = roomId.slice(prefix.length);
+  return /^\d+$/.test(instance) && Number(instance) > 1;
+}
