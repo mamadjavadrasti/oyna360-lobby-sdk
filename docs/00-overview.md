@@ -1,47 +1,50 @@
-# نمای کلی — `@oyna360/lobby-sdk`
+# نمای کلی — `@oyna360/lobby-sdk` (Core)
 
-برای بازی‌سازی که می‌خواهد **لابی ۳D مشترک** قبل از مسابقه داشته باشد.
+Core لابی oyna360: ارتباط شبکه و state — **بدون Babylon**.
+
+برای صحنه ۳D و `PlatformLobby` → [`@oyna360/lobby-babylon`](https://www.npmjs.com/package/@oyna360/lobby-babylon).
 
 ---
 
 ## مسئولیت‌ها
 
-| این SDK | پلتفرم / game-sdk | بازی شما |
-|---------|-------------------|----------|
-| رندر لابی، آواتار، حرکت | هویت، سشن، `platform:init` / Direct Auth | تم، پورتال، قوانین شروع مسابقه |
-| WebSocket `/lobby` | ساخت اتاق و اعتبار سشن | سرور گیم‌پلی بعد از `destroy()` |
-| چت / voice لابی | فلگ‌ها و moderation سمت سرور | UI اختصاصی مسابقه |
+| این پکیج (Core) | lobby-babylon | پلتفرم / game-sdk | بازی شما |
+|-----------------|---------------|-------------------|----------|
+| LobbyClient، AvatarState، protocol | رندر، AvatarFactory، صحنه | هویت، سشن، `platform:init` | تم، پورتال، شروع مسابقه |
+| WebSocket `/lobby` | دوربین، برخورد، UI لابی | اتاق و اعتبار سشن | گیم‌پلی بعد از `destroy()` |
 
-**لاگین و Authorize کار lobby-sdk نیست.** همیشه Context را از game-sdk یا parent پلتفرم بگیرید.
+**لاگین کار lobby-sdk نیست.** Context را از game-sdk بگیرید.
 
 ---
 
 ## وابستگی‌ها
 
-- peer: `@babylonjs/core` ^7
-- همراه پکیج: `socket.io-client`, `@babylonjs/loaders`
-- پروتکل پیام‌ها داخل `dist` bundle شده
+- `socket.io-client`
+- **بدون** `@babylonjs/core` / `@babylonjs/loaders`
+- پروتکل داخل `dist` bundle شده
 
 ---
 
 ## جریان کلی
 
 ```text
-PlatformSDK.init()  →  SdkInitPayload (user, session, avatar, lobby)
+PlatformSDK.init()  →  SdkInitPayload
         ↓
-PlatformLobby.create({ platformInit, wsUrl, roomId })
+LobbyClient.create / connect   ← فقط Core
+   یا
+PlatformLobby.create (…)       ← از lobby-babylon (روی LobbyClient)
         ↓
-بازیکن در لابی حرکت / چت می‌کند
+بازیکن در لابی
         ↓
-پورتال یا شمارش اتاق → callback شما
-        ↓
-lobby.destroy() → گیم‌پلی خودتان
+lobby.destroy() → گیم‌پلی
 ```
 
 ---
 
 ## چه چیزهایی export می‌شود؟
 
-علاوه بر `PlatformLobby`: کارخانه آواتار، انیماتور، دوربین، collider، pluginهای نمونه، ابزار diag — برای سفارشی‌سازی پیشرفته. برای اکثر بازی‌ها همان `PlatformLobby` کافی است.
+`LobbyClient`, `LobbyAvatarController`, `NetworkClient`, `PlatformBridge`, protocol helpers، locomotion ریاضی (بدون mesh)، pluginهای Core، …
 
-بعدی: [01-connect.md](./01-connect.md) · نصب: [02-install.md](./02-install.md)
+`PlatformLobby` و `AvatarFactory` اینجا نیستند → `lobby-babylon`.
+
+بعدی: [02-install.md](./02-install.md) · API: [04-api.md](./04-api.md)

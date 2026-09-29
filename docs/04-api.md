@@ -1,106 +1,83 @@
-# API — `PlatformLobby`
+# API — Core (`LobbyClient` / Avatar)
 
-## ساخت نمونه
-
-### `PlatformLobby.create(options)`
-
-```ts
-interface PlatformLobbyCreateOptions {
-  canvas: HTMLCanvasElement;
-  platformInit: SdkInitPayload | PlatformInitMessage;
-  roomId: string;
-  wsUrl?: string;          // پیش‌فرض از platformInit.lobby.wsUrl
-  strictRoom?: boolean;    // دعوت دوست؛ بدون spillover ظرفیت
-  config?: PlatformLobbyConfig;
-}
-```
-
-### `PlatformLobby.createFromPlatform(canvas, config?)`
-
-منتظر Context روی window / `platform:init` می‌ماند، سپس `create` را صدا می‌زند.
-
-### `PlatformLobby.createDev(options)`
-
-Mock Context + معمولاً `enableMultiplayer: false`.
+برای `PlatformLobby` → مستندات [`@oyna360/lobby-babylon`](https://www.npmjs.com/package/@oyna360/lobby-babylon).
 
 ---
 
-## `PlatformLobbyConfig` (مهم‌ترین‌ها)
+## `LobbyClient`
 
-| فیلد | پیش‌فرض | توضیح |
-|------|---------|--------|
-| `enableMultiplayer` | `true` | اتصال سوکت |
-| `enableChat` | `true` | overlay چت |
-| `enableVoice` | `true` | voice WebRTC |
-| `enablePresenceUi` | با مالتی‌پلیر | toast ورود/خروج |
-| `enableConnectionUi` | با مالتی‌پلیر | قطع اتصال |
-| `enableOrientationUi` | `true` | اعلان landscape موبایل |
-| `locale` | `'fa'` | `'fa'` \| `'en'` |
-| `spawnPoint` / `spawnPoints` | — | محل اسپان |
-| `playerSpeed` / `runMultiplier` | داخلی | حرکت |
-| `cameraDistance` / `cameraHeight` | داخلی | دوربین |
-| `quality` | `'auto'` | کیفیت رندر |
-| `avatarBases` | — | کاتالوگ GLB |
-| `preloadAvatarBases` | true | گرم کردن کش GLB |
+```ts
+import { LobbyClient } from '@oyna360/lobby-sdk';
+
+const client = LobbyClient.create({
+  platformInit,
+  wsUrl?,      // اختیاری — از platformInit.lobby
+  roomId?,
+  strictRoom?,
+});
+
+client.on('welcome', handler); // قبل از connect ثبت کنید
+client.connect();
+
+await LobbyClient.connect({ platformInit }); // create + connect
+```
+
+### متدها
+
+```ts
+client.getPlayers();        // همه (شامل self بعد از welcome)
+client.getRemotePlayers();  // بدون self
+client.getPlayer(userId);
+client.self;
+client.roomId;
+client.isConnected();
+
+client.sendMove({ position, rotationY, animation });
+client.sendChat(text);
+client.sendData(channel, payload);
+client.sendEmote(emote);
+client.destroy();
+```
+
+### رویدادها (نمونه)
+
+| Event | معنی |
+|-------|------|
+| `welcome` | snapshot اتاق |
+| `player:join` / `player:leave` / `player:update` | حضور / حرکت |
+| `player:avatar` | ظاهر remote بعد از validate سرور |
+| `player:emote` | اموجی |
+| `chat` / `data` | پیام‌ها |
+| `connected` / `disconnected` / `reconnecting` | سوکت |
+| `error` | خطا |
 
 ---
 
-## متدهای پرکاربرد
+## `LobbyAvatarController` — `client.avatar`
 
 ```ts
-lobby.getUser();
-lobby.getSession();
-lobby.getAvatar();
-lobby.getPlayers();
-
-lobby.applyPlazaLayout({ onRoomStart, /* … */ });
-lobby.applyStarterLayout({ /* … */ });
-
-lobby.addZone({ id, bounds, onEnter, onExit });
-lobby.addPortal({ id, /* … */ });
-
-lobby.sendChat('سلام');
-lobby.sendData('my-channel', payloadString); // کانال data جدا از چت
-
-lobby.playEmote('wave');
-lobby.attachChat();
-lobby.destroy();
+client.avatar.getState();
+client.avatar.setBase({ baseId, modelUrl?, presetKind? });
+client.avatar.setSkin({ bodyColor?, tint?, baseAlbedoUrl? });
+client.avatar.patchSkin({ … });
+client.avatar.addAccessory({ id, itemId?, slot?, kind? });
+client.avatar.removeAccessory(id);
+client.avatar.attach({ id, bone?, slot?, … });
+client.avatar.removeAttachment(id);
+client.avatar.toSdk(); // SdkLobbyAvatar برای pipeline رندر
 ```
 
-### رویدادها
-
-```ts
-lobby.on('chat', ({ displayName, text }) => {});
-lobby.on('playerJoin', (player) => {});
-lobby.on('playerLeave', ({ userId }) => {});
-// و سایر رویدادهای LobbyEventMap
-```
-
-### Plugin
-
-```ts
-import { ShopZonePlugin, defineLobbyPlugin } from '@oyna360/lobby-sdk';
-lobby.use(ShopZonePlugin);
-```
+وقتی سوکت وصل است، تغییر ظاهر → `lobby:avatar:update` (سرور sanitize می‌کند).
 
 ---
 
-## چیدمان
+## سایر exportهای مفید
 
-- **`applyPlazaLayout` (متد):** میدان، اتاق‌ها، برخورد — برای اکثر بازی‌ها.
-- **`applyStarterLayout`:** چیدمان ساده‌تر استارتر.
-- تابع‌های export هم‌نام را به‌جای متد صدا نزنید؛ برخورد به‌درستی اعمال نمی‌شود.
+`PlatformBridge`, `NetworkClient`, protocol helpers (`sanitizeLobbyChat`, …),  
+`ZoneManager` / `PortalManager` (منطق bounds، بدون mesh), locomotion ریاضی.
 
 ---
 
-## چرخه عمر
+## Breaking `0.2.0`
 
-1. create  
-2. layout / zones  
-3. بازیکن در لابی  
-4. شروع مسابقه → **`destroy()`**  
-5. موتور گیم‌پلی خودتان (مثلاً Three.js روی canvas دیگر)
-
-دو موتور روی یک canvas توصیه نمی‌شود.
-
-بعدی: [05-features.md](./05-features.md)
+`PlatformLobby` از این پکیج حذف شد → `@oyna360/lobby-babylon`.

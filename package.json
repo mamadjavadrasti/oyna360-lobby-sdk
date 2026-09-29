@@ -1,15 +1,15 @@
 {
   "name": "@oyna360/lobby-sdk",
-  "version": "0.1.3",
-  "description": "oyna360 3D Lobby SDK for game developers (Babylon.js). Protocol is bundled — do not install lobby-protocol.",
+  "version": "0.2.0",
+  "description": "oyna360 Lobby Core SDK — network, room/player state, avatar state (renderer-agnostic). For Babylon.js use @oyna360/lobby-babylon.",
   "license": "MIT",
   "author": "oyna360",
   "keywords": [
     "oyna360",
     "lobby-sdk",
-    "babylonjs",
     "multiplayer",
-    "avatar"
+    "avatar",
+    "websocket"
   ],
   "type": "module",
   "main": "./dist/index.js",
@@ -19,6 +19,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js",
+      "default": "./dist/core/index.js"
     }
   },
   "files": [
@@ -35,18 +40,14 @@
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
+    "typecheck:core": "tsc --noEmit -p tsconfig.core.json",
     "lint": "echo \"No lint configured for @oyna360/lobby-sdk\"",
     "check:protocol": "node ./scripts/prebuild.mjs --check"
   },
   "dependencies": {
-    "@babylonjs/loaders": "^7.44.0",
     "socket.io-client": "^4.8.1"
   },
-  "peerDependencies": {
-    "@babylonjs/core": "^7.0.0"
-  },
   "devDependencies": {
-    "@babylonjs/core": "^7.44.0",
     "typescript": "^5.7.2"
   },
   "engines": {

@@ -1,105 +1,96 @@
 # @oyna360/lobby-sdk
 
-لابی سه‌بعدی **oyna360** برای بازی‌سازان — بر پایه Babylon.js.
+**Core** لابی oyna360 — شبکه، state اتاق/بازیکن، AvatarState.  
+بدون Babylon.js.
 
-پلتفرم هویت، آواتار و اتاق WebSocket را می‌دهد.  
-**ظاهر لابی، پورتال‌ها و شروع گیم‌پلی مال شماست.**
+برای رندر ۳D و `PlatformLobby` از [`@oyna360/lobby-babylon`](https://www.npmjs.com/package/@oyna360/lobby-babylon) استفاده کنید.
 
-**نسخه پکیج:** `0.1.2` روی npm · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
+**نسخه:** `0.2.0` · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
 
-> اتصال اولیه به پلتفرم (سشن / Authorize) کار [`@oyna360/game-sdk`](https://www.npmjs.com/package/@oyna360/game-sdk) است. این SDK لابی را اجرا می‌کند، لاگین نمی‌کند.
+> لاگین / Authorize کار [`@oyna360/game-sdk`](https://www.npmjs.com/package/@oyna360/game-sdk) است.
 
 ---
 
 ## نصب
 
 ```bash
-npm install @oyna360/lobby-sdk @babylonjs/core
+npm install @oyna360/lobby-sdk
 # یا
-pnpm add @oyna360/lobby-sdk @babylonjs/core
+pnpm add @oyna360/lobby-sdk
 ```
-
-`@babylonjs/core` peer dependency است (نسخه ۷ توصیه می‌شود).
 
 ```json
 {
   "dependencies": {
-    "@oyna360/lobby-sdk": "^0.1.2",
-    "@babylonjs/core": "^7.44.0"
+    "@oyna360/lobby-sdk": "^0.2.0"
   }
 }
 ```
 
-نسخه را در [npm](https://www.npmjs.com/package/@oyna360/lobby-sdk) ببینید.
+این پکیج **peer به Babylon ندارد**. فقط `socket.io-client` را می‌آورد.
 
-### به‌روزرسانی
+### لابی ۳D (Babylon)
 
 ```bash
-npm install @oyna360/lobby-sdk@latest
-# یا
-pnpm update @oyna360/lobby-sdk
+npm install @oyna360/lobby-babylon @oyna360/lobby-sdk @babylonjs/core
 ```
 
-بعد از آپدیت، کش Vite را پاک کنید: `rm -rf node_modules/.vite`
+معمولاً فقط `@oyna360/lobby-babylon` کافی است (Core را به‌صورت dependency می‌آورد و بسیاری از نمادهای Core را re-export می‌کند).
 
 ---
 
-## سه حالت ورود به لابی
+## معماری
 
-| حالت | کی استفاده کنید | API |
-|------|------------------|-----|
-| **Production** | بازیکن از `/play/{slug}` آمده | `createFromPlatform` یا `create({ platformInit })` بعد از game-sdk |
-| **Direct Development** | بازی روی origin خودتان + game-sdk Authorize | `create({ platformInit })` با Context از `PlatformSDK.init()` |
-| **Offline / Fake** | تست UI بدون سرور | `createDev()` — مالتی‌پلیر واقعی ندارد |
+```text
+@oyna360/lobby-sdk          ← Core (این پکیج)
+        ↑
+@oyna360/lobby-babylon      ← PlatformLobby / Avatar / Scene
+```
+
+| پکیج | مسئولیت |
+|------|---------|
+| `lobby-sdk` | `LobbyClient`, `LobbyAvatarController`, protocol, room/player SoT |
+| `lobby-babylon` | `PlatformLobby`, AvatarFactory, صحنه Babylon |
 
 ---
 
-## شروع سریع — با پلتفرم واقعی
+## شروع سریع — فقط Core (بدون Babylon)
 
 ```ts
-import { PlatformSDK } from '@oyna360/game-sdk';
-import { PlatformLobby } from '@oyna360/lobby-sdk';
+import { LobbyClient } from '@oyna360/lobby-sdk';
 
-const canvas = document.getElementById('lobby') as HTMLCanvasElement;
-
-// 1) Context از پلتفرم (iframe یا Direct Dev)
-const init = await PlatformSDK.init({
-  // Direct فقط:
-  // platformUrl, platformWebUrl, gameSlug
+const client = LobbyClient.create({
+  platformInit, // از game-sdk / platform:init
 });
 
-// 2) لابی واقعی
-const lobby = await PlatformLobby.create({
-  canvas,
-  platformInit: init,
-  roomId: init.lobby!.roomId,
-  wsUrl: init.lobby!.wsUrl,
+client.on('welcome', ({ self, players }) => {
+  console.log(self.userId, players.length);
 });
 
-lobby.applyPlazaLayout({
-  onRoomStart: (room) => {
-    lobby.destroy();
-    startGameplay(room.id);
-  },
-});
+client.connect();
+
+client.avatar.setSkin({ bodyColor: '#4f46e5' });
+// وقتی وصل است → lobby:avatar:update به سرور می‌رود
+
+client.sendChat('سلام');
+client.destroy();
 ```
-
-`wsUrl` / `roomId` را هاردکد نکنید.
 
 ---
 
-## شروع سریع — فقط UI آفلاین
+## Avatar API (محلی + sync)
 
 ```ts
-const lobby = await PlatformLobby.createDev({
-  canvas,
-  roomId: 'game:my-game',
-  config: { enableMultiplayer: false },
-});
-lobby.applyPlazaLayout();
+client.avatar.getState();
+client.avatar.setBase({ baseId: 'default-1' });
+client.avatar.setSkin({ tint: '#112233' });
+client.avatar.addAccessory({ id: 'hat-1', itemId: 'cap', slot: 'hat' });
+client.avatar.removeAccessory('hat-1');
+client.avatar.attach({ id: 'prop-1', bone: 'handR' });
+client.avatar.removeAttachment('prop-1');
 ```
 
-این مسیر برای توسعه ظاهر است، نه تست مالتی‌پلیر روی سرور.
+تغییرات ظاهر بعد از اتصال، از مسیر سرور validate و به remoteها broadcast می‌شوند (`lobby:avatar:update` → `lobby:player:avatar`).
 
 ---
 
@@ -107,26 +98,23 @@ lobby.applyPlazaLayout();
 
 | موضوع | فایل |
 |--------|------|
-| نقش SDK و مرز با game-sdk | [docs/00-overview.md](./docs/00-overview.md) |
-| اتصال و پیش‌نیاز | [docs/01-connect.md](./docs/01-connect.md) |
-| حالت‌های Production / Direct / Dev | [docs/03-modes.md](./docs/03-modes.md) |
-| API `PlatformLobby` | [docs/04-api.md](./docs/04-api.md) |
-| آواتار، چت، voice، data | [docs/05-features.md](./docs/05-features.md) |
-| کنترل‌ها و موبایل | [docs/06-controls.md](./docs/06-controls.md) |
-| عیب‌یابی | [docs/07-troubleshooting.md](./docs/07-troubleshooting.md) |
-| انتشار / نصب از npm | [docs/02-install.md](./docs/02-install.md) |
+| نقش Core و مرز با Babylon | [docs/00-overview.md](./docs/00-overview.md) |
+| نصب / publish | [docs/02-install.md](./docs/02-install.md) |
+| LobbyClient / AvatarState | [docs/04-api.md](./docs/04-api.md) |
+| عیب‌یابی Core | [docs/07-troubleshooting.md](./docs/07-troubleshooting.md) |
+
+رندر و `PlatformLobby`: مستندات [`@oyna360/lobby-babylon`](../lobby-babylon/README.md).
 
 ---
 
-## امکانات اصلی
+## Breaking change در `0.2.0`
 
-- صحنه Babylon، دوربین سوم‌شخص، برخورد
-- آواتار procedural / GLB + اکسسوری
-- بازیکنان remote، حرکت، انیمیشن
-- چت زنده، presence، voice (اختیاری)
-- کانال `lobby:data` برای matchmaking / کنترل بازی
-- Plaza / Starter layout، zone، portal، plugin
-- کیفیت خودکار و UI فارسی/انگلیسی
+از این نسخه، `PlatformLobby` دیگر از `@oyna360/lobby-sdk` export نمی‌شود.
+
+```diff
+- import { PlatformLobby } from '@oyna360/lobby-sdk';
++ import { PlatformLobby } from '@oyna360/lobby-babylon';
+```
 
 ---
 

@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "./src/core",
+    "outDir": "./dist-core-check"
+  },
+  "include": ["src/core/**/*"],
+  "exclude": ["node_modules", "dist", "src/renderers", "src/index.ts"]
+}

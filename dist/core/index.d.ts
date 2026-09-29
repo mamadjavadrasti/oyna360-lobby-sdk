@@ -1,0 +1,35 @@
+/** Core lobby SDK — no Babylon.js imports. */
+export { LobbyClient } from './lobby-client.js';
+export type { LobbyClientConnectOptions, LobbyClientEvents, LobbyNetworkLike, LobbyWelcomeMeta, } from './lobby-client.js';
+export { NetworkClient } from './network-client.js';
+export type { NetworkClientHandlers } from './network-client.js';
+export { PlatformBridge } from './platform-bridge.js';
+export { LobbyEmitter } from './events.js';
+export { createRoomState, upsertPlayer, removePlayer, } from './room-state.js';
+export type { RoomState } from './room-state.js';
+export type { PlayerState } from './player-state.js';
+export { playerKey } from './player-state.js';
+export type { AvatarState, AvatarStateView, AvatarSkin, AvatarAccessory, AvatarAttachment, AvatarVec3, AvatarStateChangeEvent, LobbyAvatarEvents, SetBaseInput, } from './avatar-state.js';
+export { LobbyAvatarController, avatarFromPlayer, avatarStateFromSdk, avatarStateToSdk, cloneAvatarState, } from './avatar-state.js';
+export * from './protocol.js';
+export type { SdkInitPayload, SdkUser, SdkSession, SdkGameInfo, SdkLobbyAvatar, PlatformInitMessage, AvatarPresetKind, } from './platform-types.js';
+export type { Vector3, PlatformLobbyConfig, PlatformLobbyCreateOptions, PlatformLobbyDevOptions, LobbyZoneOptions, LobbyPortalOptions, LobbyPlugin, LobbyPluginHost, LobbyEventMap, LobbyEventName, LobbyThemeConfig, LobbySpawnConfig, } from './types.js';
+export { ZoneManager, PortalManager } from './zones.js';
+export { resolveGlbUrl } from './avatar-config.js';
+export { pickAvatarClip, dedupeClipsByName, AVATAR_CLIP_ALIASES } from './avatar-clips.js';
+export * from './humanoid-locomotion.js';
+export { resolveHumanoidJoints } from './humanoid-bone-names.js';
+export { DEFAULT_LOBBY_SPAWN, lobbySpawnPose, spawnLayoutFromConfig, resolveSpawnPose, provisionalSpawnSlot, } from './spawn-utils.js';
+export type { LobbySpawnLayout, LobbySpawnPose } from './spawn-utils.js';
+export { defineLobbyPlugin, ShopZonePlugin, LeaderboardZonePlugin } from './plugins.js';
+export { formatPlayerLabel, formatPlayerLabelParts, formatPlayerHandle, formatAvatarTagLabel, } from './player-label.js';
+export { resolveLobbyQuality, lobbyQualitySettings, LOBBY_QUALITY, detectLobbyQuality, isTouchDevice, shouldDisableLobbyBloom, shouldTrimAvatarDetailMaps, remoteAvatarAnimStride, LOBBY_AVATAR_ANIM_FULL_DIST, LOBBY_AVATAR_ANIM_HALF_DIST, LOBBY_AVATAR_ANIM_QUARTER_DIST } from './quality.js';
+export type { LobbyQualityLevel, LobbyQualitySettings } from './quality.js';
+export { LobbyVoiceChat } from './voice-chat.js';
+export type { VoiceChatState, VoiceSignaling } from './voice-chat.js';
+export { LobbyMusic } from './lobby-music.js';
+export { ensureLobbyPersianFont, lobbyCanvasFont, LOBBY_UI_FONT } from './lobby-font.js';
+export { resolveLobbyUiMessages } from './lobby-ui-i18n.js';
+export type { LobbyUiLocale, LobbyUiMessages } from './lobby-ui-i18n.js';
+export { yieldToRenderLoop } from './yield-to-render.js';
+//# sourceMappingURL=index.d.ts.map

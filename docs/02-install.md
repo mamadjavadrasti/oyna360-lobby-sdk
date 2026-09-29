@@ -1,69 +1,107 @@
-# نصب و به‌روزرسانی (npm)
+# نصب و انتشار (npm) — Core + Babylon
 
-پکیج‌های رسمی روی **npm** منتشر می‌شوند:
+از **`0.2.0`** دو پکیج جدا دارید:
 
-| پکیج | npm |
-|------|-----|
-| Lobby SDK | [`@oyna360/lobby-sdk`](https://www.npmjs.com/package/@oyna360/lobby-sdk) (`^0.1.1`) |
-| Game SDK | [`@oyna360/game-sdk`](https://www.npmjs.com/package/@oyna360/game-sdk) (`^0.5.2`) |
+| پکیج | نقش | npm |
+|------|-----|-----|
+| `@oyna360/lobby-sdk` | Core (شبکه / state) | [`npm`](https://www.npmjs.com/package/@oyna360/lobby-sdk) `^0.2.0` |
+| `@oyna360/lobby-babylon` | رندر Babylon / `PlatformLobby` | [`npm`](https://www.npmjs.com/package/@oyna360/lobby-babylon) `^0.2.0` |
+| `@oyna360/game-sdk` | هویت / سشن | [`npm`](https://www.npmjs.com/package/@oyna360/game-sdk) |
 
-## نصب lobby-sdk
+---
+
+## نصب برای بازی ۳D (معمول)
 
 ```bash
-npm install @oyna360/lobby-sdk @babylonjs/core
+npm install @oyna360/lobby-babylon @babylonjs/core
 # یا
-pnpm add @oyna360/lobby-sdk @babylonjs/core
+pnpm add @oyna360/lobby-babylon @babylonjs/core
 ```
 
 ```json
 {
   "dependencies": {
-    "@oyna360/lobby-sdk": "^0.1.1",
+    "@oyna360/lobby-babylon": "^0.2.0",
     "@babylonjs/core": "^7.44.0"
   }
 }
 ```
 
-همیشه `@babylonjs/core` را جدا نصب کنید (peer dependency).
+`lobby-sdk` به‌صورت dependency از `lobby-babylon` می‌آید.
 
-## نصب هر دو (لابی + هویت / امتیاز)
+## فقط Core (بدون Babylon)
 
 ```bash
-npm install @oyna360/game-sdk @oyna360/lobby-sdk @babylonjs/core
+npm install @oyna360/lobby-sdk
+```
+
+## نصب همراه game-sdk
+
+```bash
+npm install @oyna360/game-sdk @oyna360/lobby-babylon @babylonjs/core
 ```
 
 ## به‌روزرسانی
 
 ```bash
-npm install @oyna360/lobby-sdk@latest
-npm install @oyna360/game-sdk@latest
-
-# یا با pnpm
-pnpm update @oyna360/lobby-sdk @oyna360/game-sdk
-```
-
-بعد از آپدیت lobby-sdk:
-
-```bash
+npm install @oyna360/lobby-babylon@latest @oyna360/lobby-sdk@latest
 rm -rf node_modules/.vite
-```
-
-نسخهٔ نصب‌شده را چک کنید:
-
-```bash
-npm ls @oyna360/lobby-sdk @oyna360/game-sdk
+npm ls @oyna360/lobby-babylon @oyna360/lobby-sdk
 ```
 
 ## بررسی سلامت `dist`
 
-بعد از نصب، در `node_modules/@oyna360/lobby-sdk/dist/index.js`:
+### Core — `node_modules/@oyna360/lobby-sdk/dist`
 
-- نباید `from '@platform/lobby-protocol'` دیده شود
-- باید فایل‌هایی مثل `platform-lobby.js`, `protocol.js`, `avatar-factory.js` وجود داشته باشد
+- نباید `from '@platform/lobby-protocol'` باشد
+- نباید import از `@babylonjs/*` باشد
+- باید `core/lobby-client.js`, `core/protocol.js`, `core/avatar-state.js` وجود داشته باشد
+- **نباید** `platform-lobby.js` / `avatar-factory.js` در ریشهٔ dist باشد (آن‌ها در babylon هستند)
 
-اگر `index.js` هنوز `@platform/lobby-protocol` import کند، پکیج کهنه است — به آخرین نسخهٔ npm آپدیت کنید.
+### Babylon — `node_modules/@oyna360/lobby-babylon/dist`
 
-## جایگزین‌ها (معمولاً لازم نیست)
+- باید `platform-lobby.js`, `avatar-factory.js` وجود داشته باشد
+- dependency به `@oyna360/lobby-sdk` resolve شده باشد
 
-- **مونوریپو پلتفرم:** استارتر دمو با `workspace:*` از `packages/lobby-sdk` استفاده می‌کند.
-- **GitHub:** فقط اگر تگ با `dist` تازه منتشر شده باشد؛ مسیر پیشنهادی برای بازی‌سازان **npm** است.
+## Migration از ≤ 0.1.x
+
+```diff
+- "@oyna360/lobby-sdk": "^0.1.3"
++ "@oyna360/lobby-babylon": "^0.2.0"
+
+- import { PlatformLobby } from '@oyna360/lobby-sdk'
++ import { PlatformLobby } from '@oyna360/lobby-babylon'
+```
+
+---
+
+## انتشار به npm (نگهدارندگان مونوریپو)
+
+ترتیب مهم است — اول Core:
+
+```bash
+# از روت پلتفرم
+pnpm --filter @oyna360/lobby-sdk build
+pnpm --filter @oyna360/lobby-babylon build
+
+cd packages/lobby-sdk
+npm publish --access public
+
+cd ../lobby-babylon
+npm publish --access public
+```
+
+نسخهٔ هر دو پکیج باید هم‌تراز باشد (مثلاً `0.2.0`).  
+در `lobby-babylon/package.json` dependency روی Core باید نسخهٔ npm باشد (`^0.2.0`)، نه `file:`.
+
+اختیاری — pack بدون publish:
+
+```bash
+pnpm lobby:pack
+# یا
+node scripts/lobby-sdk-pack.mjs --tarball
+```
+
+## مونوریپو
+
+استارتر دمو: `workspace:*` روی هر دو پکیج (`apps/examples/lobby-demo`).
