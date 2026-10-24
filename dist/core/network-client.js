@@ -52,6 +52,7 @@ export class NetworkClient {
         switch (msg.type) {
             case 'lobby:welcome':
                 this.handlers.onWelcome?.(msg.self, msg.players, {
+                    roomId: msg.roomId,
                     friendUserIds: msg.friendUserIds,
                     voicePeers: msg.voicePeers,
                     lobbyFeatures: msg.lobbyFeatures,

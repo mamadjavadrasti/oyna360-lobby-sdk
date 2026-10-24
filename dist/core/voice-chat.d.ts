@@ -7,6 +7,7 @@ export type VoicePosition = {
     z: number;
 };
 export type VoiceSignaling = {
+    validateJoin?(mode: LobbyVoiceMode): void;
     sendJoin(mode: LobbyVoiceMode): void;
     sendLeave(): void;
     sendMute(muted: boolean): void;
@@ -39,12 +40,19 @@ export declare class LobbyVoiceChat {
     private peerCap;
     private getPosition;
     private lastMeshRefreshMs;
+    private iceServers;
+    private enabling;
+    private generation;
+    private readonly pendingIce;
     constructor(signaling: VoiceSignaling);
     onStateChange(listener: VoiceChatListener): () => boolean;
     setContext(selfUserId: string, friendUserIds: string[]): void;
     /** Optional world positions for nearest-N mesh selection. */
     setPositionProvider(fn: (userId: string) => VoicePosition | null | undefined): void;
     setPeerCap(cap: number): void;
+    setIceServers(servers: RTCIceServer[]): void;
+    /** Keep local consent/stream while a temporary transport reconnects. */
+    handleTransportDisconnected(): void;
     getState(): VoiceChatState;
     /**
      * Re-evaluate nearest peers (e.g. after movement). Throttled to ~2Hz by default.
@@ -69,6 +77,7 @@ export declare class LobbyVoiceChat {
     private createOffer;
     private ensurePeer;
     private closePeer;
+    private flushIce;
     private teardownPeers;
     private stopLocalStream;
     private applyMicTrackState;

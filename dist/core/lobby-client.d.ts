@@ -5,6 +5,7 @@ import type { SdkInitPayload } from './platform-types.js';
 import { LobbyAvatarController } from './avatar-state.js';
 import type { LobbyAnimationState, LobbyEmoteKind, LobbyFeatureFlags, LobbyPlayerState, LobbyVoiceMode, LobbyVoicePeerState, RtcIceCandidate, RtcSessionDescription, Vector3 } from './protocol.js';
 export type LobbyWelcomeMeta = {
+    roomId?: string;
     friendUserIds?: string[];
     voicePeers?: LobbyVoicePeerState[];
     lobbyFeatures?: LobbyFeatureFlags;

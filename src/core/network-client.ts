@@ -17,7 +17,7 @@ export type NetworkClientHandlers = {
   onWelcome?: (
     self: LobbyPlayerState,
     players: LobbyPlayerState[],
-    meta?: { friendUserIds?: string[]; voicePeers?: LobbyVoicePeerState[]; lobbyFeatures?: LobbyFeatureFlags },
+    meta?: { roomId?: string; friendUserIds?: string[]; voicePeers?: LobbyVoicePeerState[]; lobbyFeatures?: LobbyFeatureFlags },
   ) => void;
   onPlayerJoined?: (player: LobbyPlayerState) => void;
   onPlayerLeft?: (payload: { userId: string; username?: string; displayName?: string }) => void;
@@ -124,6 +124,7 @@ export class NetworkClient {
     switch (msg.type) {
       case 'lobby:welcome':
         this.handlers.onWelcome?.(msg.self, msg.players, {
+          roomId: msg.roomId,
           friendUserIds: msg.friendUserIds,
           voicePeers: msg.voicePeers,
           lobbyFeatures: msg.lobbyFeatures,

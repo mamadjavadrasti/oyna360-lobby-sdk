@@ -17,6 +17,7 @@ import type {
 } from './protocol.js';
 
 export type LobbyWelcomeMeta = {
+  roomId?: string;
   friendUserIds?: string[];
   voicePeers?: LobbyVoicePeerState[];
   lobbyFeatures?: LobbyFeatureFlags;
@@ -314,6 +315,7 @@ export class LobbyClient {
       onReconnectFailed: () => this.events.emit('reconnectFailed', undefined as void),
       onWelcome: (self, players, meta) => {
         if (!this.room) return;
+        if (meta?.roomId) this.room.roomId = meta.roomId;
         this.room.self = self;
         this.room.players.clear();
         upsertPlayer(this.room, self);

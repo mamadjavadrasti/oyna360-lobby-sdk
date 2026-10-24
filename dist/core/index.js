@@ -1,4 +1,5 @@
 /** Core lobby SDK — no Babylon.js imports. */
+export { LobbyCommunications, requestLobbyCommunicationCredentials } from './lobby-communications.js';
 export { LobbyClient } from './lobby-client.js';
 export { NetworkClient } from './network-client.js';
 export { PlatformBridge } from './platform-bridge.js';
@@ -8,7 +9,7 @@ export { playerKey } from './player-state.js';
 export { LobbyAvatarController, avatarFromPlayer, avatarStateFromSdk, avatarStateToSdk, cloneAvatarState, } from './avatar-state.js';
 export * from './protocol.js';
 export { ZoneManager, PortalManager } from './zones.js';
-export { resolveGlbUrl } from './avatar-config.js';
+export { resolveGlbUrl, resolveAvatarBaseAlbedoUrl } from './avatar-config.js';
 export { pickAvatarClip, dedupeClipsByName, AVATAR_CLIP_ALIASES } from './avatar-clips.js';
 export * from './humanoid-locomotion.js';
 export { resolveHumanoidJoints } from './humanoid-bone-names.js';

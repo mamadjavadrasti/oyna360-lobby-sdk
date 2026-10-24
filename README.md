@@ -5,7 +5,11 @@
 
 برای رندر ۳D و `PlatformLobby` از [`@oyna360/lobby-babylon`](https://www.npmjs.com/package/@oyna360/lobby-babylon) استفاده کنید.
 
-**نسخه:** `0.2.0` · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
+**لود آواتار برای AI و بازی‌ساز:** [راهنمای استاندارد آواتار در lobby-babylon](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/08-avatars.md). این پکیج Core فقط state و شبکه را مدیریت می‌کند؛ GLB/Draco را رندر نمی‌کند.
+
+**نسخهٔ سورس:** `0.3.0` · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
+
+تماس زندهٔ گروهی و چت متنی از مسیر مستقل `LobbyCommunications` پشتیبانی می‌شود؛ در لابی آماده خودکار است. [راهنمای اتصال و مجوزها](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/09-communications.md).
 
 > لاگین / Authorize کار [`@oyna360/game-sdk`](https://www.npmjs.com/package/@oyna360/game-sdk) است.
 
@@ -22,7 +26,7 @@ pnpm add @oyna360/lobby-sdk
 ```json
 {
   "dependencies": {
-    "@oyna360/lobby-sdk": "^0.2.0"
+    "@oyna360/lobby-sdk": "^0.3.0"
   }
 }
 ```
@@ -103,7 +107,7 @@ client.avatar.removeAttachment('prop-1');
 | LobbyClient / AvatarState | [docs/04-api.md](./docs/04-api.md) |
 | عیب‌یابی Core | [docs/07-troubleshooting.md](./docs/07-troubleshooting.md) |
 
-رندر و `PlatformLobby`: مستندات [`@oyna360/lobby-babylon`](../lobby-babylon/README.md).
+رندر و `PlatformLobby`: مستندات [`@oyna360/lobby-babylon`](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/README.md).
 
 ---
 

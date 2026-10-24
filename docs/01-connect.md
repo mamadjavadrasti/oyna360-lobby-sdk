@@ -13,6 +13,6 @@ client.on('welcome', () => {});
 client.connect();
 ```
 
-برای لابی ۳D کامل → [`@oyna360/lobby-babylon` docs/01-connect.md](../../lobby-babylon/docs/01-connect.md).
+برای لابی ۳D کامل → [`@oyna360/lobby-babylon` docs/01-connect.md](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/01-connect.md).
 
 نصب: [02-install.md](./02-install.md)

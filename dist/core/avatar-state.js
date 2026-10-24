@@ -1,5 +1,5 @@
 import { LobbyEmitter } from './events.js';
-import { resolveGlbUrl } from './avatar-config.js';
+import { resolveGlbUrl, resolveAvatarBaseAlbedoUrl } from './avatar-config.js';
 function cloneVec(v) {
     return v ? { x: v.x, y: v.y, z: v.z } : undefined;
 }
@@ -50,14 +50,14 @@ export function avatarStateFromSdk(avatar) {
     const config = (avatar.customConfig ?? {});
     const modelUrl = resolveGlbUrl(avatar);
     const skin = {};
-    const tint = readString(config, 'tint') ?? readString(config, 'color');
+    const tint = readString(config, 'tintColor') ?? readString(config, 'tint') ?? readString(config, 'color');
     if (tint)
         skin.tint = tint;
     const bodyColor = readString(config, 'bodyColor');
     const accentColor = readString(config, 'accentColor');
     const pantsColor = readString(config, 'pantsColor');
     const hairColor = readString(config, 'hairColor');
-    const baseAlbedoUrl = readString(config, 'baseAlbedoUrl') ?? null;
+    const baseAlbedoUrl = resolveAvatarBaseAlbedoUrl(config);
     if (bodyColor)
         skin.bodyColor = bodyColor;
     if (accentColor)
@@ -66,7 +66,7 @@ export function avatarStateFromSdk(avatar) {
         skin.pantsColor = pantsColor;
     if (hairColor)
         skin.hairColor = hairColor;
-    if (baseAlbedoUrl !== null && config.baseAlbedoUrl != null)
+    if (baseAlbedoUrl !== null)
         skin.baseAlbedoUrl = baseAlbedoUrl;
     const accessories = [];
     const rawAcc = config.accessories;

@@ -179,6 +179,8 @@ export class LobbyClient {
             onWelcome: (self, players, meta) => {
                 if (!this.room)
                     return;
+                if (meta?.roomId)
+                    this.room.roomId = meta.roomId;
                 this.room.self = self;
                 this.room.players.clear();
                 upsertPlayer(this.room, self);

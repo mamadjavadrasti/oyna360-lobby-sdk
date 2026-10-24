@@ -1,4 +1,6 @@
 /** Core lobby SDK — no Babylon.js imports. */
+export { LobbyCommunications, requestLobbyCommunicationCredentials } from './lobby-communications.js';
+export type { LobbyCommunicationChannel, LobbyCommunicationCredentials, LobbyCommunicationsOptions } from './lobby-communications.js';
 
 export { LobbyClient } from './lobby-client.js';
 export type {
@@ -69,7 +71,7 @@ export type {
 } from './types.js';
 
 export { ZoneManager, PortalManager } from './zones.js';
-export { resolveGlbUrl } from './avatar-config.js';
+export { resolveGlbUrl, resolveAvatarBaseAlbedoUrl } from './avatar-config.js';
 export { pickAvatarClip, dedupeClipsByName, AVATAR_CLIP_ALIASES } from './avatar-clips.js';
 export * from './humanoid-locomotion.js';
 export { resolveHumanoidJoints } from './humanoid-bone-names.js';

@@ -55,6 +55,8 @@ client.destroy();
 
 ## `LobbyAvatarController` — `client.avatar`
 
+این API state است. رفتار renderer، محدودیت تعویض مدل و attachment و نمونهٔ لود واقعی را در [مرجع آواتار lobby-babylon](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/08-avatars.md) ببینید. `setSkin` جایگزینی کامل و `patchSkin` ادغام جزئی است؛ تغییر state تضمین رندر یا ذخیره در حساب کاربر نیست.
+
 ```ts
 client.avatar.getState();
 client.avatar.setBase({ baseId, modelUrl?, presetKind? });

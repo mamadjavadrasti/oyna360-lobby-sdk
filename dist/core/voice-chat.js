@@ -22,6 +22,10 @@ export class LobbyVoiceChat {
     peerCap = DEFAULT_VOICE_PEER_CAP;
     getPosition = null;
     lastMeshRefreshMs = 0;
+    iceServers = ICE_SERVERS;
+    enabling = null;
+    generation = 0;
+    pendingIce = new Map();
     constructor(signaling) {
         this.signaling = signaling;
     }
@@ -41,6 +45,14 @@ export class LobbyVoiceChat {
     setPeerCap(cap) {
         this.peerCap = Math.max(1, Math.floor(cap));
     }
+    setIceServers(servers) { this.iceServers = servers; }
+    /** Keep local consent/stream while a temporary transport reconnects. */
+    handleTransportDisconnected() {
+        this.teardownPeers();
+        this.voicePeers.clear();
+        this.pendingIce.clear();
+        this.emitState();
+    }
     getState() {
         return this.snapshot();
     }
@@ -54,29 +66,50 @@ export class LobbyVoiceChat {
         if (!force && now - this.lastMeshRefreshMs < 500)
             return;
         this.lastMeshRefreshMs = now;
-        void this.syncPeerConnections(true);
+        void this.syncPeerConnections(true).catch((error) => console.warn('[lobby-sdk] voice negotiation failed', error));
     }
     async enable(mode) {
         if (this.disposed || this.active)
             return;
+        if (this.enabling)
+            return this.enabling;
+        this.signaling.validateJoin?.(mode);
         if (!navigator.mediaDevices?.getUserMedia) {
             throw new Error('Microphone is not supported in this browser');
         }
+        const generation = ++this.generation;
         this.mode = mode;
-        this.localStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-            },
-            video: false,
-        });
-        this.applyMicTrackState();
-        this.active = true;
-        this.emitState();
-        this.signaling.sendJoin(mode);
+        const pending = (async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                },
+                video: false,
+            });
+            if (this.disposed || generation !== this.generation) {
+                for (const track of stream.getTracks())
+                    track.stop();
+                return;
+            }
+            this.localStream = stream;
+            this.applyMicTrackState();
+            this.active = true;
+            this.emitState();
+            this.signaling.sendJoin(mode);
+        })();
+        this.enabling = pending;
+        try {
+            await pending;
+        }
+        finally {
+            if (this.enabling === pending)
+                this.enabling = null;
+        }
     }
     async disable() {
+        ++this.generation;
         if (!this.active)
             return;
         this.signaling.sendLeave();
@@ -84,6 +117,7 @@ export class LobbyVoiceChat {
         this.stopLocalStream();
         this.active = false;
         this.voicePeers.clear();
+        this.pendingIce.clear();
         this.emitState();
     }
     async setMode(mode) {
@@ -117,7 +151,7 @@ export class LobbyVoiceChat {
         }
         if (!this.active)
             return;
-        void this.syncPeerConnections(true);
+        void this.syncPeerConnections(true).catch((error) => console.warn('[lobby-sdk] voice negotiation failed', error));
         this.emitState();
     }
     handleVoiceJoined(peer) {
@@ -126,7 +160,7 @@ export class LobbyVoiceChat {
         this.voicePeers.set(peer.userId, peer);
         if (!this.active)
             return;
-        // Existing participants wait for offers from the joiner.
+        void this.syncPeerConnections(true).catch((error) => console.warn('[lobby-sdk] voice negotiation failed', error));
         this.emitState();
     }
     handleVoiceLeft(userId) {
@@ -152,6 +186,7 @@ export class LobbyVoiceChat {
             return;
         const pc = await this.ensurePeer(fromUserId);
         await pc.setRemoteDescription(sdp);
+        await this.flushIce(fromUserId, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         if (pc.localDescription) {
@@ -163,11 +198,19 @@ export class LobbyVoiceChat {
         if (!pc)
             return;
         await pc.setRemoteDescription(sdp);
+        await this.flushIce(fromUserId, pc);
     }
     async handleIce(fromUserId, candidate) {
         const pc = this.peers.get(fromUserId);
-        if (!pc || !candidate.candidate)
+        if (!candidate.candidate || !this.active || !this.voicePeers.has(fromUserId))
             return;
+        if (!pc?.remoteDescription) {
+            const queued = this.pendingIce.get(fromUserId) ?? [];
+            if (queued.length < 32)
+                queued.push(candidate);
+            this.pendingIce.set(fromUserId, queued);
+            return;
+        }
         try {
             await pc.addIceCandidate(candidate);
         }
@@ -198,7 +241,7 @@ export class LobbyVoiceChat {
         for (const peer of this.voicePeers.values()) {
             if (!meshIds.has(peer.userId))
                 continue;
-            if (asOfferer && !this.peers.has(peer.userId)) {
+            if (asOfferer && this.selfUserId.localeCompare(peer.userId) < 0 && !this.peers.has(peer.userId)) {
                 await this.createOffer(peer.userId);
             }
         }
@@ -207,7 +250,7 @@ export class LobbyVoiceChat {
         if (peer.userId === this.selfUserId)
             return false;
         const iAllow = this.mode === 'all' || this.friendIds.has(peer.userId);
-        const theyAllow = peer.mode === 'all' || this.friendIds.has(this.selfUserId);
+        const theyAllow = peer.mode === 'all' || this.friendIds.has(peer.userId);
         return iAllow && theyAllow;
     }
     nearestEligiblePeerIds() {
@@ -242,7 +285,7 @@ export class LobbyVoiceChat {
         const existing = this.peers.get(userId);
         if (existing)
             return existing;
-        const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+        const pc = new RTCPeerConnection({ iceServers: this.iceServers });
         this.peers.set(userId, pc);
         pc.onicecandidate = (event) => {
             if (event.candidate) {
@@ -277,6 +320,7 @@ export class LobbyVoiceChat {
                 pc.addTrack(track, this.localStream);
             }
         }
+        this.emitState();
         return pc;
     }
     closePeer(userId) {
@@ -289,6 +333,18 @@ export class LobbyVoiceChat {
             audio.remove();
         }
         this.remoteAudio.delete(userId);
+        this.pendingIce.delete(userId);
+        this.emitState();
+    }
+    async flushIce(userId, pc) {
+        const queued = this.pendingIce.get(userId) ?? [];
+        this.pendingIce.delete(userId);
+        for (const candidate of queued) {
+            try {
+                await pc.addIceCandidate(candidate);
+            }
+            catch { /* Late candidates may belong to an older connection. */ }
+        }
     }
     teardownPeers() {
         for (const userId of [...this.peers.keys()])

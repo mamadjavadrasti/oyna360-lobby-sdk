@@ -1,7 +1,7 @@
 import type { LobbyAnimationState, LobbyEmoteKind, LobbyPlayerState } from './protocol.js';
 import type { AvatarPresetKind, SdkLobbyAvatar } from './platform-types.js';
 import { LobbyEmitter } from './events.js';
-import { resolveGlbUrl } from './avatar-config.js';
+import { resolveGlbUrl, resolveAvatarBaseAlbedoUrl } from './avatar-config.js';
 
 /** Renderer-agnostic 3-vector (not Babylon Vector3). */
 export type AvatarVec3 = { x: number; y: number; z: number };
@@ -140,18 +140,18 @@ export function avatarStateFromSdk(avatar: SdkLobbyAvatar): AvatarState {
   const modelUrl = resolveGlbUrl(avatar);
 
   const skin: AvatarSkin = {};
-  const tint = readString(config, 'tint') ?? readString(config, 'color');
+  const tint = readString(config, 'tintColor') ?? readString(config, 'tint') ?? readString(config, 'color');
   if (tint) skin.tint = tint;
   const bodyColor = readString(config, 'bodyColor');
   const accentColor = readString(config, 'accentColor');
   const pantsColor = readString(config, 'pantsColor');
   const hairColor = readString(config, 'hairColor');
-  const baseAlbedoUrl = readString(config, 'baseAlbedoUrl') ?? null;
+  const baseAlbedoUrl = resolveAvatarBaseAlbedoUrl(config);
   if (bodyColor) skin.bodyColor = bodyColor;
   if (accentColor) skin.accentColor = accentColor;
   if (pantsColor) skin.pantsColor = pantsColor;
   if (hairColor) skin.hairColor = hairColor;
-  if (baseAlbedoUrl !== null && config.baseAlbedoUrl != null) skin.baseAlbedoUrl = baseAlbedoUrl;
+  if (baseAlbedoUrl !== null) skin.baseAlbedoUrl = baseAlbedoUrl;
 
   const accessories: AvatarAccessory[] = [];
   const rawAcc = config.accessories;

@@ -1,6 +1,7 @@
 import type { LobbyEmoteKind, LobbyFeatureFlags, LobbyMoveMessage, LobbyPlayerState, LobbyVoiceMode, LobbyVoicePeerState, RtcIceCandidate, RtcSessionDescription } from './protocol.js';
 export type NetworkClientHandlers = {
     onWelcome?: (self: LobbyPlayerState, players: LobbyPlayerState[], meta?: {
+        roomId?: string;
         friendUserIds?: string[];
         voicePeers?: LobbyVoicePeerState[];
         lobbyFeatures?: LobbyFeatureFlags;

@@ -31,6 +31,8 @@ export interface PlatformLobbyConfig extends LobbyThemeConfig, LobbySpawnConfig 
     enableChat?: boolean;
     /** Default true. WebRTC voice chat (friends / all lobby modes). */
     enableVoice?: boolean;
+    /** Default: independent communications in platform iframes. false opts into the legacy /lobby transport. */
+    communications?: import('./lobby-communications.js').LobbyCommunicationsOptions | false;
     /** Default true when multiplayer is on. Join/leave toasts. */
     enablePresenceUi?: boolean;
     /** Default true when multiplayer is on. Disconnect overlay. */
