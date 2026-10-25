@@ -1,7 +1,7 @@
 {
   "name": "@oyna360/lobby-sdk",
-  "version": "0.3.0",
-  "description": "oyna360 Lobby Core SDK — network, room/player state, avatar state (renderer-agnostic). For Babylon.js use @oyna360/lobby-babylon.",
+  "version": "0.4.1",
+  "description": "oyna360 Lobby SDK — connect your existing game lobby to Oyna360 and receive player, room, and avatar data. Engine-independent.",
   "license": "MIT",
   "author": "oyna360",
   "keywords": [

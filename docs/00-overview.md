@@ -1,50 +1,16 @@
-# نمای کلی — `@oyna360/lobby-sdk` (Core)
+# نقش lobby-sdk در لابی بازی
 
-Core لابی oyna360: ارتباط شبکه و state — **بدون Babylon**.
+`@oyna360/lobby-sdk` رابط اتصال اوینا به **لابی اختصاصی شما** است. همان لابی و موتور بازی خودتان را نگه دارید.
 
-برای صحنه ۳D و `PlatformLobby` → [`@oyna360/lobby-babylon`](https://www.npmjs.com/package/@oyna360/lobby-babylon).
+| SDK انجام می‌دهد | بازی شما انجام می‌دهد |
+|---|---|
+| اتصال به اتاق با سشن اوینا | ساخت و نمایش صحنه و UI |
+| دریافت هویت و اطلاعات آواتار هر فرد | دانلود مدل/تکسچر با loader موجود بازی |
+| دریافت ورود، خروج، حرکت و تغییر ظاهر | نمایش، انیمیشن، کنترل و برخورد |
+| ارسال وضعیت و پیام‌های مجاز | مدیریت mesh، cache و منابع GPU |
 
----
+هویت و سشن را از game-sdk بگیرید و کل `platformInit` را به `LobbyClient.create` بدهید. SDK هیچ موتور بازی را نصب یا تنظیم نمی‌کند و برای استفاده از اطلاعات آواتار به لابی آماده نیاز ندارید.
 
-## مسئولیت‌ها
+جریان اصلی: `PlatformSDK.init()` → `LobbyClient.create({ platformInit })` → ثبت listenerها → `client.connect()` → تطبیق داده‌ها با لابی بازی → `client.destroy()` هنگام خروج.
 
-| این پکیج (Core) | lobby-babylon | پلتفرم / game-sdk | بازی شما |
-|-----------------|---------------|-------------------|----------|
-| LobbyClient، AvatarState، protocol | رندر، AvatarFactory، صحنه | هویت، سشن، `platform:init` | تم، پورتال، شروع مسابقه |
-| WebSocket `/lobby` | دوربین، برخورد، UI لابی | اتاق و اعتبار سشن | گیم‌پلی بعد از `destroy()` |
-
-**لاگین کار lobby-sdk نیست.** Context را از game-sdk بگیرید.
-
----
-
-## وابستگی‌ها
-
-- `socket.io-client`
-- **بدون** `@babylonjs/core` / `@babylonjs/loaders`
-- پروتکل داخل `dist` bundle شده
-
----
-
-## جریان کلی
-
-```text
-PlatformSDK.init()  →  SdkInitPayload
-        ↓
-LobbyClient.create / connect   ← فقط Core
-   یا
-PlatformLobby.create (…)       ← از lobby-babylon (روی LobbyClient)
-        ↓
-بازیکن در لابی
-        ↓
-lobby.destroy() → گیم‌پلی
-```
-
----
-
-## چه چیزهایی export می‌شود؟
-
-`LobbyClient`, `LobbyAvatarController`, `NetworkClient`, `PlatformBridge`, protocol helpers، locomotion ریاضی (بدون mesh)، pluginهای Core، …
-
-`PlatformLobby` و `AvatarFactory` اینجا نیستند → `lobby-babylon`.
-
-بعدی: [02-install.md](./02-install.md) · API: [04-api.md](./04-api.md)
+مرجع آواتار: [08-avatar-data.md](./08-avatar-data.md) · اتصال: [01-connect.md](./01-connect.md) · API: [04-api.md](./04-api.md)

@@ -1,126 +1,76 @@
 # @oyna360/lobby-sdk
 
-**Core** لابی oyna360 — شبکه، state اتاق/بازیکن، AvatarState.  
-بدون Babylon.js.
+SDK اصلی اتصال **لابی اختصاصی بازی شما** به اوینا: شبکه، کاربران، وضعیت اتاق، اطلاعات آواتار و پیام‌های لابی.
 
-برای رندر ۳D و `PlatformLobby` از [`@oyna360/lobby-babylon`](https://www.npmjs.com/package/@oyna360/lobby-babylon) استفاده کنید.
+SDK به موتور بازی وابسته نیست. اطلاعات مدل، تکسچر، لباس و اکسسوری آواتار را به بازی می‌دهد؛ بارگذاری و نمایش آن‌ها در صحنهٔ موجود با خود بازی است. برای این اتصال نیازی به نصب لابی آماده یا تغییر موتور و لابی خودتان ندارید.
 
-**لود آواتار برای AI و بازی‌ساز:** [راهنمای استاندارد آواتار در lobby-babylon](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/08-avatars.md). این پکیج Core فقط state و شبکه را مدیریت می‌کند؛ GLB/Draco را رندر نمی‌کند.
-
-**نسخهٔ سورس:** `0.3.0` · پروتکل داخل همین پکیج است — `@platform/lobby-protocol` را نصب نکنید.
-
-تماس زندهٔ گروهی و چت متنی از مسیر مستقل `LobbyCommunications` پشتیبانی می‌شود؛ در لابی آماده خودکار است. [راهنمای اتصال و مجوزها](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/09-communications.md).
-
-> لاگین / Authorize کار [`@oyna360/game-sdk`](https://www.npmjs.com/package/@oyna360/game-sdk) است.
-
----
+**مرجع توسعه‌دهنده و AI: [اطلاعات آواتار در لابی اختصاصی](./docs/08-avatar-data.md).**
 
 ## نصب
 
-```bash
+```sh
 npm install @oyna360/lobby-sdk
-# یا
-pnpm add @oyna360/lobby-sdk
 ```
 
-```json
-{
-  "dependencies": {
-    "@oyna360/lobby-sdk": "^0.3.0"
-  }
-}
-```
+هویت و سشن را از `@oyna360/game-sdk` دریافت کنید. موتور و ابزارهای رندر همان وابستگی‌های پروژهٔ بازی هستند.
 
-این پکیج **peer به Babylon ندارد**. فقط `socket.io-client` را می‌آورد.
-
-### لابی ۳D (Babylon)
-
-```bash
-npm install @oyna360/lobby-babylon @oyna360/lobby-sdk @babylonjs/core
-```
-
-معمولاً فقط `@oyna360/lobby-babylon` کافی است (Core را به‌صورت dependency می‌آورد و بسیاری از نمادهای Core را re-export می‌کند).
-
----
-
-## معماری
-
-```text
-@oyna360/lobby-sdk          ← Core (این پکیج)
-        ↑
-@oyna360/lobby-babylon      ← PlatformLobby / Avatar / Scene
-```
-
-| پکیج | مسئولیت |
-|------|---------|
-| `lobby-sdk` | `LobbyClient`, `LobbyAvatarController`, protocol, room/player SoT |
-| `lobby-babylon` | `PlatformLobby`, AvatarFactory, صحنه Babylon |
-
----
-
-## شروع سریع — فقط Core (بدون Babylon)
+## اتصال با API موجود
 
 ```ts
+import { PlatformSDK } from '@oyna360/game-sdk';
 import { LobbyClient } from '@oyna360/lobby-sdk';
 
-const client = LobbyClient.create({
-  platformInit, // از game-sdk / platform:init
+const platformInit = await PlatformSDK.init(/* تنظیمات محیط خودتان */);
+const client = LobbyClient.create({ platformInit });
+
+client.on('welcome', ({ self, players, roomId }) => {
+  // self.avatar: ظاهر کاربر فعلی
+  // player.avatar: ظاهر همان بازیکن برای هر عضو players
+  // کل snapshot را با صحنه و UI لابی خودتان تطبیق دهید.
 });
+client.on('player:join', (player) => { /* اضافه‌کردن به صحنهٔ خودتان */ });
+client.on('player:leave', ({ userId }) => { /* پاکسازی نمایش همان کاربر */ });
+client.on('player:update', (player) => { /* اعمال حرکت در صحنهٔ خودتان */ });
+client.on('player:avatar', ({ userId, avatar }) => { /* اعمال ظاهر جدید */ });
+client.on('error', ({ code, message }) => { /* نمایش خطای اتصال */ });
 
-client.on('welcome', ({ self, players }) => {
-  console.log(self.userId, players.length);
-});
-
-client.connect();
-
-client.avatar.setSkin({ bodyColor: '#4f46e5' });
-// وقتی وصل است → lobby:avatar:update به سرور می‌رود
-
-client.sendChat('سلام');
-client.destroy();
+client.connect(); // پس از ثبت listenerها
+// خروج از لابی:
+// client.destroy();
 ```
 
----
+`roomId` و `wsUrl` به‌صورت پیش‌فرض از `platformInit.lobby` می‌آیند؛ آن‌ها را هاردکد نکنید. `welcome` آماده‌شدن snapshot اتاق را اعلام می‌کند. پس از reconnect هم snapshot را کامل تطبیق دهید.
 
-## Avatar API (محلی + sync)
+## گرفتن اطلاعات آواتار
 
 ```ts
-client.avatar.getState();
-client.avatar.setBase({ baseId: 'default-1' });
-client.avatar.setSkin({ tint: '#112233' });
-client.avatar.addAccessory({ id: 'hat-1', itemId: 'cap', slot: 'hat' });
-client.avatar.removeAccessory('hat-1');
-client.avatar.attach({ id: 'prop-1', bone: 'handR' });
-client.avatar.removeAttachment('prop-1');
+import { resolveGlbUrl, resolveAvatarBaseAlbedoUrl } from '@oyna360/lobby-sdk';
+
+const appearance = client.self?.avatar ?? platformInit.avatar;
+const modelUrl = resolveGlbUrl(appearance);
+const clothingTextureUrl = resolveAvatarBaseAlbedoUrl(appearance.customConfig);
+const accessories = appearance.customConfig.accessories;
+
+// داده‌ها را به loader و renderer موجود بازی خودتان بدهید.
+// client.getPlayer(otherUserId)?.avatar: اطلاعات آواتار همان فرد دیگر
 ```
 
-تغییرات ظاهر بعد از اتصال، از مسیر سرور validate و به remoteها broadcast می‌شوند (`lobby:avatar:update` → `lobby:player:avatar`).
-
----
+این helperها فقط اطلاعات را استخراج می‌کنند؛ فایل دانلود نمی‌کنند و mesh نمی‌سازند. `user.avatarUrl` تصویر پروفایل است، نه مدل سه‌بعدی. لباس، Draco، رویدادها و محدودیت‌های شخصی‌سازی در [راهنمای آواتار](./docs/08-avatar-data.md) توضیح داده شده‌اند.
 
 ## مستندات
 
-| موضوع | فایل |
-|--------|------|
-| نقش Core و مرز با Babylon | [docs/00-overview.md](./docs/00-overview.md) |
-| نصب / publish | [docs/02-install.md](./docs/02-install.md) |
-| LobbyClient / AvatarState | [docs/04-api.md](./docs/04-api.md) |
-| عیب‌یابی Core | [docs/07-troubleshooting.md](./docs/07-troubleshooting.md) |
-
-رندر و `PlatformLobby`: مستندات [`@oyna360/lobby-babylon`](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/README.md).
-
----
-
-## Breaking change در `0.2.0`
-
-از این نسخه، `PlatformLobby` دیگر از `@oyna360/lobby-sdk` export نمی‌شود.
-
-```diff
-- import { PlatformLobby } from '@oyna360/lobby-sdk';
-+ import { PlatformLobby } from '@oyna360/lobby-babylon';
-```
-
----
+| موضوع | راهنما |
+|---|---|
+| مسئولیت SDK و بازی | [00-overview.md](./docs/00-overview.md) |
+| اتصال به لابی اختصاصی | [01-connect.md](./docs/01-connect.md) |
+| نصب و build | [02-install.md](./docs/02-install.md) |
+| نصب از GitHub | [02-github.md](./docs/02-github.md) |
+| محیط واقعی و توسعه | [03-modes.md](./docs/03-modes.md) |
+| APIهای موجود | [04-api.md](./docs/04-api.md) |
+| متن، صوت و داده | [05-features.md](./docs/05-features.md) |
+| ورودی و حرکت | [06-controls.md](./docs/06-controls.md) |
+| عیب‌یابی | [07-troubleshooting.md](./docs/07-troubleshooting.md) |
+| **قرارداد آواتار و راهنمای AI** | [08-avatar-data.md](./docs/08-avatar-data.md) |
 
 ## لایسنس
 

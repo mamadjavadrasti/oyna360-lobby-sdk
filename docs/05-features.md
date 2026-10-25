@@ -1,5 +1,21 @@
-# امکانات
+# ارتباطات و داده‌های لابی
 
-امکانات رندر / چت UI / کنترلر ۳D در [`@oyna360/lobby-babylon` docs/05-features.md](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/05-features.md).
+`LobbyClient` اطلاعات اتاق و بازیکنان را می‌گیرد. UI و نمایش آواتارها را بازی خودش پیاده می‌کند؛ [قرارداد آواتار](./08-avatar-data.md).
 
-برای AvatarState و sync شبکه در Core → [04-api.md](./04-api.md).
+## پیام و وضعیت
+
+| API / رویداد موجود | کاربرد |
+|---|---|
+| `sendMove` و `player:update` | وضعیت موقعیت، چرخش و حرکت |
+| `sendEmote` و `player:emote` | اطلاعات emote برای انیمیشن بازی |
+| `sendData` و `data` | کانال دادهٔ اختصاصی منطق بازی |
+| `sendChat` و `chat` روی LobbyClient | مسیر متن پروتکل لابی |
+| `LobbyCommunications` | اتصال اختیاری به سرویس مستقل متن و تماس زنده، در نسخه‌های دارای این API |
+
+## سرویس مستقل ارتباطات
+
+`LobbyCommunications` نیز موتور یا UI لابی نمی‌سازد. هنگام استفاده از آن، بعد از `welcome` شناسهٔ واقعی اتاق را با `setLobbyRoom(roomId)` تنظیم کنید. `startText(roomId)` کانال متن را وصل می‌کند؛ callback متن را به UI خود بازی بدهید. این اتصال در Core به‌صورت خودکار ساخته نمی‌شود.
+
+تماس از `communications.voice` مدیریت می‌شود: `enable('friends')` برای گروه خصوصی انتخاب‌شده، `setMicMuted` و `disable`. میکروفون فقط پس از اقدام کاربر روشن شود. تماس با اعضای کل لابی به `allowLobbyVoice: true` و انتخاب صریح کاربر نیاز دارد. اگر گروهی انتخاب نشده است، آن را به تماس همگانی تبدیل نکنید.
+
+اتصال این سرویس به والد معتبر یا credential provider و توکن محدود همان اتاق نیاز دارد. JWT حساب را داخل بازی قرار ندهید. هنگام خروج، `communications.dispose()` را جدا از `client.destroy()` صدا بزنید. برای متن یک مسیر انتخاب کنید تا یک پیام را هم‌زمان روی دو transport ارسال یا دوبار نمایش ندهید. `lobby:data` را برای صوت یا متن انسانی به کار نبرید.

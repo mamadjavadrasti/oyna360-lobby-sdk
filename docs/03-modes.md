@@ -1,5 +1,15 @@
-# حالت‌های اجرا
+# محیط واقعی و توسعه
 
-`PlatformLobby` و حالت‌های ۳D در [`@oyna360/lobby-babylon`](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/03-modes.md) هستند.
+در همهٔ محیط‌ها، بعد از دریافت payload معتبر، همان API استفاده می‌شود:
 
-برای Core خالص فقط `LobbyClient.create` / `connect` — [01-connect.md](./01-connect.md).
+```ts
+const client = LobbyClient.create({ platformInit });
+// listenerها را ثبت کنید.
+client.connect();
+```
+
+- داخل iframe اوینا، game-sdk اطلاعات واقعی کاربر و سشن را از والد می‌گیرد.
+- در Developer Environment، game-sdk با تنظیمات همان محیط، payload معتبر می‌گیرد؛ آن را بدون جایگزین‌کردن avatar به lobby-sdk بدهید.
+- اطلاعات mock برای بررسی UI آفلاین، هویت واقعی کاربر یا مجوز اتصال به سرور ایجاد نمی‌کند.
+
+در هر حالت SDK فقط اتصال و داده‌ها را مدیریت می‌کند؛ لابی، موتور و نمایش پروژهٔ شما همان قبلی‌اند. [آواتار](./08-avatar-data.md) · [اتصال](./01-connect.md)

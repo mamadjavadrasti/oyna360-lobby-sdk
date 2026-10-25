@@ -1,39 +1,25 @@
-# عیب‌یابی — Core (`lobby-sdk`)
+# عیب‌یابی lobby-sdk
 
-## `PlatformLobby` is not exported / undefined
+## welcome نمی‌آید
 
-از `0.2.0` به بعد `PlatformLobby` در این پکیج نیست:
+listener را پیش از `connect()` ثبت کنید. سشن معتبر، `platformInit.lobby.wsUrl`، شناسهٔ اتاق و خطاهای `error` را بررسی کنید. connected شدن سوکت به‌تنهایی به معنی دریافت snapshot نیست.
 
-```bash
-npm install @oyna360/lobby-babylon @babylonjs/core
-```
+## اتصال درست است ولی آواتار دیده نمی‌شود
 
-```ts
-import { PlatformLobby } from '@oyna360/lobby-babylon';
-```
+SDK داده را می‌دهد و mesh نمی‌سازد. `self.avatar` و `player.avatar` را بررسی کنید و آن‌ها را به loader موجود بازی بدهید. `resolveGlbUrl` فقط URL را استخراج می‌کند. [راهنمای آواتار](./08-avatar-data.md).
 
-## Missing welcome / players خالی
+## آواتار اشتباه یا لباس حذف شده است
 
-قبل از `connect()` لیسنر `welcome` را ثبت کنید، یا از `LobbyClient.create` → `on` → `connect` استفاده کنید.
+از آواتار همان بازیکن استفاده کنید، نه اولین عضو avatarBases یا آواتار محلی برای همه. اصل customConfig را حفظ کنید و تکسچر منتخب را با `resolveAvatarBaseAlbedoUrl` بخوانید. `user.avatarUrl` تصویر پروفایل است.
 
-## Avatar remote آپدیت نمی‌شود
+## خطای Draco، 404 یا CORS
 
-- سوکت وصل است؟
-- سرور `lobby:avatar:update` را می‌پذیرد؟ (نسخه API هم‌تراز)
-- URL مطلق ناامن از client strip می‌شود — فقط path نسبی امن forward می‌شود
+Draco مربوط به loader موتور بازی است. decoder آن را در همان پروژه تنظیم کنید. URL مطلق پلتفرم را به مسیر دامنهٔ بازی تبدیل نکنید. پاسخ فایل، CORS و محتوای واقعی GLB/تکسچر را در Network بررسی کنید.
 
-## dist هنوز Babylon دارد
+## ظاهر remote تغییر نمی‌کند
 
-پکیج کهنه است یا اشتباهی monorepo قدیمی نصب شده. باید فقط `dist/core/**` و `dist/index.js` بدون `@babylonjs` باشد:
+اتصال، دریافت `player:avatar` و اعمال داده به renderer بازی را بررسی کنید. سرور پیشنهادهای شخصی‌سازی را sanitize می‌کند؛ URL دلخواه و بعضی متادیتاها ممکن است حذف شوند. تغییر داده به‌تنهایی نمایش یا ذخیرهٔ دائمی حساب ایجاد نمی‌کند.
 
-```bash
-npm install @oyna360/lobby-sdk@^0.2.0
-```
+## پس از reconnect بازیکن تکراری یا قدیمی دیده می‌شود
 
-## پروتکل drift
-
-در مونوریپو:
-
-```bash
-node scripts/sync-lobby-protocol.mjs --check
-```
+welcome را snapshot کامل بدانید؛ فهرست صحنه را با آن تطبیق دهید و افراد حذف‌شده را پاک کنید. نتیجهٔ دیررس دانلود آواتار فردی که خارج شده را وارد صحنه نکنید.

@@ -1,6 +1,6 @@
 # API — Core (`LobbyClient` / Avatar)
 
-برای `PlatformLobby` → مستندات [`@oyna360/lobby-babylon`](https://www.npmjs.com/package/@oyna360/lobby-babylon).
+SDK اتصال و داده‌ها را مدیریت می‌کند؛ نمایش با موتور و لابی خود بازی است. [قرارداد اطلاعات آواتار](./08-avatar-data.md).
 
 ---
 
@@ -11,9 +11,8 @@ import { LobbyClient } from '@oyna360/lobby-sdk';
 
 const client = LobbyClient.create({
   platformInit,
-  wsUrl?,      // اختیاری — از platformInit.lobby
-  roomId?,
-  strictRoom?,
+  // wsUrl و roomId به‌صورت پیش‌فرض از platformInit.lobby می‌آیند.
+  // strictRoom نیز در صورت نیاز قابل تنظیم است.
 });
 
 client.on('welcome', handler); // قبل از connect ثبت کنید
@@ -55,18 +54,12 @@ client.destroy();
 
 ## `LobbyAvatarController` — `client.avatar`
 
-این API state است. رفتار renderer، محدودیت تعویض مدل و attachment و نمونهٔ لود واقعی را در [مرجع آواتار lobby-babylon](https://github.com/mamadjavadrasti/oyna360-lobby-babylon/blob/master/docs/08-avatars.md) ببینید. `setSkin` جایگزینی کامل و `patchSkin` ادغام جزئی است؛ تغییر state تضمین رندر یا ذخیره در حساب کاربر نیست.
+این API دادهٔ شخصی‌سازی است. `setSkin` جایگزینی کامل و `patchSkin` ادغام جزئی است؛ تغییر داده، مدل یا mesh ایجاد نمی‌کند و تضمین ذخیره در حساب کاربر نیست. [راهنمای آواتار و اعمال تغییرات در بازی](./08-avatar-data.md).
 
 ```ts
 client.avatar.getState();
-client.avatar.setBase({ baseId, modelUrl?, presetKind? });
-client.avatar.setSkin({ bodyColor?, tint?, baseAlbedoUrl? });
-client.avatar.patchSkin({ … });
-client.avatar.addAccessory({ id, itemId?, slot?, kind? });
-client.avatar.removeAccessory(id);
-client.avatar.attach({ id, bone?, slot?, … });
-client.avatar.removeAttachment(id);
-client.avatar.toSdk(); // SdkLobbyAvatar برای pipeline رندر
+client.avatar.patchSkin({ bodyColor: '#4f46e5' });
+client.avatar.toSdk(); // دادهٔ SdkLobbyAvatar؛ نمایش آن با بازی است.
 ```
 
 وقتی سوکت وصل است، تغییر ظاهر → `lobby:avatar:update` (سرور sanitize می‌کند).
@@ -80,6 +73,6 @@ client.avatar.toSdk(); // SdkLobbyAvatar برای pipeline رندر
 
 ---
 
-## Breaking `0.2.0`
+## محدودهٔ API
 
-`PlatformLobby` از این پکیج حذف شد → `@oyna360/lobby-babylon`.
+اتصال به اوینا با LobbyClient است. SDK موتور، صحنه، mesh و کنترلر بازی نمی‌سازد؛ این مسئولیت‌ها در همان پروژهٔ بازی باقی می‌مانند.
